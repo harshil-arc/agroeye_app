@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFarmData } from '@/context/FarmDataContext';
+import { getFirebaseInstance } from '@/lib/firebase';
+import { WebRTCStreamClient, WebRTCStreamStats } from '@/lib/webrtcClient';
 import {
   Video,
   Play,
@@ -34,7 +36,8 @@ import {
   Gamepad2,
   Lock,
   Compass,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 
 export default function LiveCameraPage() {
@@ -45,7 +48,8 @@ export default function LiveCameraPage() {
     setCameraMode,
     updateCameraCoords,
     sendCameraStep,
-    firebaseConfig
+    firebaseConfig,
+    firebaseConnected
   } = useFarmData();
 
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -58,6 +62,21 @@ export default function LiveCameraPage() {
   const [lastActionStatus, setLastActionStatus] = useState<string>('Ready');
   const [isSendingToFirebase, setIsSendingToFirebase] = useState<boolean>(false);
   const videoViewportRef = useRef<HTMLDivElement>(null);
+  const videoElementRef = useRef<HTMLVideoElement>(null);
+
+  // WebRTC Streaming Client State
+  const webrtcClientRef = useRef<WebRTCStreamClient | null>(null);
+  const [hasLiveStream, setHasLiveStream] = useState<boolean>(false);
+  const [streamStats, setStreamStats] = useState<WebRTCStreamStats>({
+    fps: 0,
+    bitrateKbps: 0,
+    latencyMs: 65,
+    resolution: '640x480',
+    connectionState: 'idle',
+    iceState: 'idle',
+    isRelayed: false,
+  });
+  const [connectionStatusText, setConnectionStatusText] = useState<string>('Connecting...');
 
   // Live timestamp clock update
   useEffect(() => {
@@ -71,6 +90,67 @@ export default function LiveCameraPage() {
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // WebRTC Stream Initializer & Lifecycle Manager
+  useEffect(() => {
+    if (!isPlaying || isOfflineMode) {
+      if (webrtcClientRef.current) {
+        webrtcClientRef.current.stop();
+        webrtcClientRef.current = null;
+      }
+      setHasLiveStream(false);
+      return;
+    }
+
+    const { db } = getFirebaseInstance();
+    if (!db) {
+      console.warn('[Live Stream] Firebase Realtime Database not initialized yet.');
+      return;
+    }
+
+    setConnectionStatusText('Negotiating WebRTC / TURN...');
+
+    const client = new WebRTCStreamClient({
+      deviceId: 'pi_agroeye_01',
+      db: db,
+      onStream: (stream) => {
+        console.log('[Live Stream] WebRTC Stream received! Attaching to video element...');
+        setHasLiveStream(true);
+        setConnectionStatusText('Live Stream Active');
+        if (videoElementRef.current) {
+          videoElementRef.current.srcObject = stream;
+          videoElementRef.current.play().catch((err) => {
+            console.warn('[Live Stream] Auto-play interrupted or requires interaction:', err);
+          });
+        }
+      },
+      onStatsUpdate: (stats) => {
+        setStreamStats(stats);
+        if (stats.connectionState === 'connected') {
+          setConnectionStatusText(stats.isRelayed ? 'Live (TURN Relay)' : 'Live (Direct P2P)');
+        } else if (stats.connectionState === 'connecting') {
+          setConnectionStatusText('Establishing Connection...');
+        } else if (stats.connectionState === 'failed') {
+          setConnectionStatusText('Reconnecting...');
+        }
+      },
+      onError: (err) => {
+        console.error('[Live Stream] WebRTC Client Error:', err);
+        setConnectionStatusText('Connection Retrying...');
+      },
+    });
+
+    webrtcClientRef.current = client;
+    client.start();
+
+    return () => {
+      if (client) {
+        client.stop();
+      }
+      setHasLiveStream(false);
+    };
+  }, [isPlaying, isOfflineMode, firebaseConnected]);
+
 
   // AUTOMATIC SHIFT TO AUTO MODE ON PAGE EXIT / BACK NAVIGATION
   useEffect(() => {
@@ -257,6 +337,41 @@ export default function LiveCameraPage() {
             <span>2. Manual Mode (Joystick)</span>
           </button>
         </div>
+        {/* Rapid Telemetry Ribbon */}
+        <div className="flex items-center gap-2 overflow-x-auto mt-3 pb-1 text-slate-700">
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-xs">
+            <Radio className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="font-headline text-xs font-semibold text-slate-800">
+              {streamStats.resolution || '640x480'} / {streamStats.fps || (hasLiveStream ? 20 : 0)} FPS
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-xs">
+            <Activity className="w-3.5 h-3.5 text-teal-600" />
+            <span className="font-headline text-xs font-semibold text-slate-800">
+              Latency: {streamStats.latencyMs}ms ({streamStats.latencyMs < 120 ? 'Ultra-Low' : 'Good'})
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-xs">
+            <Wifi className="w-3.5 h-3.5 text-amber-600" />
+            <span className="font-headline text-xs font-semibold text-slate-800">
+              {streamStats.isRelayed ? 'TURN Relay' : 'Direct P2P'}
+            </span>
+          </div>
+          {streamStats.bitrateKbps > 0 && (
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-xs">
+              <Activity className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="font-headline text-xs font-semibold text-slate-800">
+                {streamStats.bitrateKbps} kbps
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-xs">
+            <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="font-headline text-xs font-semibold text-slate-800">
+              Solar: +18.4W
+            </span>
+          </div>
+        </div>
       </section>
 
       {/* 2. VIDEO STREAM DISPLAY CONTAINER */}
@@ -267,18 +382,40 @@ export default function LiveCameraPage() {
         >
           {isPlaying && !isOfflineMode ? (
             /* Live Stream Active Layer */
-            <div className="relative w-full aspect-[16/10] sm:aspect-video overflow-hidden group">
-              <img
-                alt="Raspberry Pi outdoor farm camera feed"
-                className="w-full h-full object-cover transition-transform duration-300 will-change-transform"
+            <div className="relative w-full aspect-[16/10] sm:aspect-video overflow-hidden group bg-black flex items-center justify-center">
+              {/* Actual WebRTC HTML5 Video Element */}
+              <video
+                ref={videoElementRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover transition-transform duration-300 will-change-transform ${
+                  hasLiveStream ? 'opacity-100' : 'opacity-0 absolute'
+                }`}
                 style={{
                   transform: `scale(1.08) translate(${panVisualX}px, ${tiltVisualY}px)`,
                 }}
-                src={latestImageUrl}
-                onError={(e) => {
-                  (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
-                }}
               />
+
+              {/* Connecting / Standby Preview Layer if waiting for video track */}
+              {!hasLiveStream && (
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                  <img
+                    alt="Raspberry Pi outdoor farm camera standby"
+                    className="absolute inset-0 w-full h-full object-cover opacity-35 filter blur-xs"
+                    src={latestImageUrl || 'https://iili.io/nuiqbzg.jpg'}
+                  />
+                  <div className="relative z-10 flex flex-col items-center gap-2">
+                    <Loader2 className="w-9 h-9 text-emerald-400 animate-spin" />
+                    <span className="font-headline text-sm font-bold text-white drop-shadow">
+                      {connectionStatusText}
+                    </span>
+                    <span className="text-xs text-slate-300 max-w-xs drop-shadow">
+                      Negotiating secure WebRTC / TURN media stream with Raspberry Pi...
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Night Vision IR Green Tint Overlay */}
               {isNightMode && (
@@ -315,7 +452,7 @@ export default function LiveCameraPage() {
                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/85 text-white backdrop-blur-md shadow-sm">
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                     <span className="font-headline text-[10px] font-bold tracking-wider uppercase">
-                      REC
+                      LIVE
                     </span>
                   </div>
                   <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-white border border-white/10">
@@ -324,6 +461,7 @@ export default function LiveCameraPage() {
                   </div>
                 </div>
               </div>
+
 
               {/* Center Crosshair HUD */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
