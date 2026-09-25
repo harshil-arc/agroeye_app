@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "on-tertiary-fixed-variant": "#004b73",
+          "tertiary": "#006194",
+          "on-surface-variant": "#3d4a42",
+          "surface-bright": "#f9f9ff",
+          "background": "#f8faf8",
+          "on-primary": "#ffffff",
+          "on-background": "#141b2b",
+          "inverse-surface": "#293040",
+          "on-secondary-fixed-variant": "#0b513d",
+          "surface-container": "#f1f5f2",
+          "primary": "#059669",
+          "surface-tint": "#006c4a",
+          "tertiary-fixed-dim": "#93ccff",
+          "on-tertiary": "#ffffff",
+          "secondary-fixed": "#b0f0d6",
+          "secondary": "#2b6954",
+          "on-secondary-container": "#306d58",
+          "surface-container-highest": "#e2e8f0",
+          "secondary-fixed-dim": "#95d3ba",
+          "on-error": "#ffffff",
+          "on-surface": "#0f172a",
+          "surface-container-high": "#e9edff",
+          "primary-container": "#00855d",
+          "on-primary-container": "#f5fff7",
+          "tertiary-container": "#007bb9",
+          "surface": "#f8faf8",
+          "surface-dim": "#d3daef",
+          "inverse-primary": "#68dba9",
+          "primary-fixed-dim": "#68dba9",
+          "on-primary-fixed": "#002114",
+          "tertiary-fixed": "#cce5ff",
+          "on-secondary-fixed": "#002117",
+          "primary-fixed": "#85f8c4",
+          "surface-variant": "#dce2f7",
+          "error": "#ba1a1a",
+          "error-container": "#ffdad6",
+          "secondary-container": "#adedd3",
+          "on-tertiary-fixed": "#001d31",
+          "outline-variant": "#e2e8f0",
+          "on-error-container": "#93000a",
+          "surface-container-low": "#ffffff",
+          "on-tertiary-container": "#fdfcff",
+          "inverse-on-surface": "#edf0ff",
+          "surface-container-lowest": "#ffffff",
+          "on-primary-fixed-variant": "#005137",
+          "on-secondary": "#ffffff",
+          "outline": "#6d7a72"
+        },
+        borderRadius: {
+          DEFAULT: "0.25rem",
+          lg: "0.5rem",
+          xl: "0.75rem",
+          full: "9999px"
+        },
+        spacing: {
+          margin: "1rem",
+          gutter: "1rem",
+          "space-md": "1rem",
+          "space-sm": "0.5rem",
+          "space-xl": "2rem",
+          "space-lg": "1.5rem",
+          "space-xs": "0.25rem"
+        },
+        fontFamily: {
+          "headline-xl": ["Space Grotesk", "sans-serif"],
+          "headline-lg": ["Space Grotesk", "sans-serif"],
+          "headline-md": ["Space Grotesk", "sans-serif"],
+          "body-lg": ["Inter", "sans-serif"],
+          "label-md": ["Space Grotesk", "sans-serif"],
+          "body-md": ["Inter", "sans-serif"],
+          "body-sm": ["Inter", "sans-serif"],
+          "label-sm": ["Space Grotesk", "sans-serif"]
+        },
+        fontSize: {
+          "headline-xl": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "700" }],
+          "headline-lg": ["28px", { lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600" }],
+          "headline-md": ["20px", { lineHeight: "26px", fontWeight: "700" }],
+          "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+          "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+          "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+          "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+          "label-sm": ["10px", { lineHeight: "14px", letterSpacing: "0.06em", fontWeight: "700" }]
+        }
+      }
+    }
+  };
+</script><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#f8faf8;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;color:#0f172a;}.pb-safe{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-[#f8faf8] font-body-md text-body-md text-slate-900 antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-white/95 backdrop-blur-md border-b border-gray-200"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm min-w-0"><div class="w-8 h-8 flex-shrink-0 flex items-center justify-center">https://lh3.googleusercontent.com/aida/AEtjO1X56PUgOSUq9n1Czk4xtFlYuJ2QhUAyu9CWf3BY83r1GoCEmSCa2ZnxRmxhe3HXv6SruUijv5pQLJX_FHJfR2Sndhi-1nG5CMeIikLn09-ai40J_D9FOJ3Vtk-HxCYFENuHEUqIAWfdFAUzH0xDL2lF1-K4zVFnaN9_NMgY4zwxPJ_Ydc2_NdceWAVuHSoiXcJraJbCnT5ih827cQqwqpOwP2n4VYUdO96y7W8dJ4G73w8eV__AAlRubYk</div><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-[18px] text-slate-900 tracking-tight leading-none">AgroEye</span><span class="font-label-sm text-label-sm text-slate-500 tracking-wider uppercase hidden sm:inline-block">• Live Feed</span></div><span class="font-label-sm text-label-sm text-slate-500 truncate flex items-center gap-0.5"><span class="text-rose-600 font-bold">📍</span> Udaipur, RJ</span></div></div><div class="flex items-center gap-space-sm flex-shrink-0"><div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 shadow-sm"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="font-label-sm text-label-sm uppercase font-bold tracking-wider text-emerald-700">Live Node</span></div><img alt="Farmer profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-600/20 flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1W7Z0YmoEh7fgrCcTh2Zj1tOtDNvssAXZe49VQblwr0m_SajWroswX9VueDJ1XL7Oq754rKujEHCOicP945BMczKQk4C39fpFmtoALbhwnKL3sFZIf8n55_snPfmLlgYwxzHco0DLEj_QUM6odyMdwom9pPogxl7f4pdZO448qjd2hrxU0Kf9gYiaKFqhnGa9dbjFmzz6OG38MEYvVN2qP5x4cGNJCgIbnr67uhoLfOWiyTUx2RyQb0eg"/></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-[#f8faf8]"><div class="flex flex-col w-full pb-8">
+<!-- Status Header / Stream Info Banner -->
+<section class="px-margin pt-3 pb-3">
+<div class="flex items-center justify-between gap-space-sm mb-1.5">
+<div class="min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-emerald-700 font-bold">Live Stream Monitored</span>
+<h1 class="font-headline-md text-headline-md text-slate-900 tracking-tight truncate">Live Farm Camera</h1>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 shadow-sm flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-label-sm text-label-sm tracking-widest uppercase font-bold" id="stream-status-pill">Live Feed</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-slate-500 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">videocam</span>
+      Farm Camera 01 <span class="text-slate-300">•</span> Raspberry Pi v3 HQ Lens
+    </p>
+<!-- Rapid Telemetry Pills (Horizontal Ribbon) -->
+<div class="flex items-center gap-2 overflow-x-auto mt-3 pb-1 no-scrollbar text-slate-600">
+<div class="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+<span class="material-symbols-outlined text-[15px] text-emerald-600">high_density</span>
+<span class="font-label-sm text-label-sm text-slate-800 font-semibold">1080p / 25 FPS</span>
+</div>
+<div class="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+<span class="material-symbols-outlined text-[15px] text-teal-600">speed</span>
+<span class="font-label-sm text-label-sm text-slate-800 font-semibold">Latency: 82ms (Low)</span>
+</div>
+<div class="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+<span class="material-symbols-outlined text-[15px] text-amber-600">cell_tower</span>
+<span class="font-label-sm text-label-sm text-slate-800 font-semibold">4G LTE (Strong)</span>
+</div>
+<div class="flex items-center gap-1.5 bg-white border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+<span class="material-symbols-outlined text-[15px] text-emerald-600">solar_power</span>
+<span class="font-label-sm text-label-sm text-slate-800 font-semibold">Solar: +18.4W</span>
+</div>
+</div>
+</section>
+<!-- VIDEO STREAM DISPLAY CONTAINER -->
+<section class="px-margin mb-4">
+<div class="relative w-full rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-md ring-1 ring-black/5" id="video-viewport-wrapper">
+<!-- Live Video Stream Layer -->
+<div class="relative w-full aspect-[16/10] sm:aspect-video overflow-hidden group" id="video-stream-active">
+<img alt="Raspberry Pi outdoor wide angle farm security camera perspective overlooking rows of lush green crops, Rajasthan agricultural field under clear morning sky, high definition farm surveillance feed" class="w-full h-full object-cover transition-transform duration-500 will-change-transform" id="camera-video-frame" src="https://lh3.googleusercontent.com/aida/AEtjO1UIQ8XrJ9026OBMUdG3CdbB0MX-9jKy7dzdKEPltb9-bXM22Ka8LHikvI0oqZwF4PHGxDW2VwE0tkiGo6ZGWSlerheTwi9J_FdlhhVR6GvcH54CtnjFP7s_Q_njx3Rb4M9ZPzcMLEN1X3RpKsa6EqfdwompZ7mTTY-6uFSGH_fW63QBm9nQWVP7yO0daqHr0mdJ-hTjNYR5wvoSQJTom_WmC_EHwlZEgXQu1diJKBKQBxs7rLKg1L82M30"/>
+<!-- Lens / Nightvision Tint Overlay (Hidden by default, active with IR Night Mode) -->
+<div class="absolute inset-0 bg-emerald-950/40 mix-blend-color pointer-events-none opacity-0 transition-opacity duration-300" id="night-vision-filter"></div>
+<!-- Vignette & Subtle Field Grid Overlay -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none"></div>
+<div class="absolute inset-0 bg-[radial-gradient(#4edea3_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none"></div>
+<!-- Telemetry Reticle Corners -->
+<div class="absolute top-3 left-3 w-3 h-3 border-t-2 border-l-2 border-emerald-400/80 pointer-events-none"></div>
+<div class="absolute top-3 right-3 w-3 h-3 border-t-2 border-r-2 border-emerald-400/80 pointer-events-none"></div>
+<div class="absolute bottom-3 left-3 w-3 h-3 border-b-2 border-l-2 border-emerald-400/80 pointer-events-none"></div>
+<div class="absolute bottom-3 right-3 w-3 h-3 border-b-2 border-r-2 border-emerald-400/80 pointer-events-none"></div>
+<!-- Top Layer Overlays -->
+<div class="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none">
+<div class="flex flex-col gap-0.5 max-w-[65%]">
+<span class="font-label-sm text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow-md">
+              RAJASTHAN AGRI-SURV • RPI CAM #01
+            </span>
+<div class="flex items-center gap-1.5 text-white/90 drop-shadow">
+<span class="font-label-sm text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-mono">UDAIPUR NODE 01</span>
+<span class="font-label-sm text-[10px] text-white/90 font-mono">FPS: 25.1</span>
+</div>
+</div>
+<!-- Top-Right Indicators -->
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/80 text-white backdrop-blur-md shadow-sm">
+<span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+<span class="font-label-sm text-[10px] font-bold tracking-wider uppercase">REC</span>
+</div>
+<div class="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-white border border-white/10">
+<span class="material-symbols-outlined text-[14px] text-emerald-400">battery_charging_full</span>
+<span class="font-label-sm text-[10px] font-bold">92%</span>
+</div>
+</div>
+</div>
+<!-- Simulated AI Edge Object Detection Bounding Box -->
+<div class="absolute top-[38%] left-[28%] w-[26%] h-[28%] rounded-sm pointer-events-none transition-all duration-300" style="outline: 1.5px solid #10b981; box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);">
+<div class="absolute -top-4 left-0 bg-emerald-600 text-white font-label-sm text-[10px] px-1.5 py-0.2 rounded-sm font-bold shadow-sm whitespace-nowrap">
+            WHEAT CANOPY 98.4%
+          </div>
+<span class="absolute bottom-1 right-1 font-label-sm text-[10px] text-emerald-300 font-bold drop-shadow">HEALTHY</span>
+</div>
+<!-- Bottom Layer Overlays -->
+<div class="absolute bottom-0 left-0 right-0 p-3 flex flex-col gap-1 pointer-events-none">
+<div class="flex items-center justify-between gap-2 text-white">
+<div class="flex items-center gap-1.5 drop-shadow-md">
+<span class="material-symbols-outlined text-[16px] text-teal-300">crop_free</span>
+<span class="font-label-md text-label-md font-bold tracking-tight text-white drop-shadow">Plot B-North (Wheat &amp; Mustard)</span>
+</div>
+<div class="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded border border-white/10 text-emerald-400 text-right font-label-sm text-[10px] font-bold drop-shadow">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              AI ENGINE ACTIVE
+            </div>
+</div>
+<div class="flex items-center justify-between text-white/80 font-label-sm text-[10px] tracking-wider">
+<span class="text-white font-mono font-semibold drop-shadow" id="video-stream-clock">2025-05-18 10:42:19 IST</span>
+<span class="drop-shadow font-mono">EXPOSURE: AUTO (ISO 100)</span>
+</div>
+</div>
+</div>
+<!-- Offline State Fallback Screen (Hidden by default, revealed upon toggle/simulation) -->
+<div class="hidden relative w-full aspect-[16/10] sm:aspect-video bg-slate-100 flex flex-col items-center justify-center p-6 text-center" id="video-stream-offline">
+<!-- Static / No Signal visual texture -->
+<div class="absolute inset-0 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
+<div class="relative z-10 flex flex-col items-center max-w-sm">
+<div class="w-14 h-14 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-3 shadow-sm">
+<span class="material-symbols-outlined text-3xl">videocam_off</span>
+</div>
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 mb-2">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-wider">Stream Disconnected</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-slate-900 tracking-tight mb-1">Camera Offline</h2>
+<p class="font-body-sm text-body-sm text-slate-600 mb-4">
+            Unable to receive live video frames. Raspberry Pi 4B node is unreachable or battery array dropped below 11.2V threshold.
+          </p>
+<div class="flex items-center gap-2 w-full justify-center">
+<button class="h-10 px-4 rounded-xl bg-emerald-600 text-white font-label-md text-label-md font-bold flex items-center gap-2 hover:bg-emerald-700 transition-colors active:scale-95 shadow-sm" id="btn-reconnect-offline" type="button">
+<span class="material-symbols-outlined text-[18px]">replay</span>
+              Reconnect Stream
+            </button>
+<button class="h-10 px-3.5 rounded-xl bg-white border border-slate-300 text-slate-800 font-label-md text-label-md font-semibold flex items-center gap-1.5 hover:bg-slate-50 transition-colors active:scale-95 shadow-sm" id="btn-diagnostics" type="button">
+<span class="material-symbols-outlined text-[18px] text-amber-600">build</span>
+              Diagnose
+            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Snapshot Toast Notification (Micro-interaction feedback) -->
+<div class="hidden mt-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-label-md text-label-md flex items-center justify-between transition-all duration-300 shadow-sm" id="snapshot-toast">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span>
+<span>Snapshot saved to local gallery (1920x1080)</span>
+</div>
+<span class="font-label-sm text-label-sm font-bold text-emerald-700">#SNAP_4021</span>
+</div>
+</section>
+<!-- CAMERA TACTICAL CONTROLS TOOLBAR -->
+<section class="px-margin mb-5">
+<div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+<div class="flex items-center justify-between mb-3 px-1">
+<span class="font-label-sm text-label-sm text-slate-500 font-bold uppercase tracking-wider">Tactical Field Controls</span>
+<span class="font-label-sm text-label-sm text-emerald-700 font-bold">WebRTC • Direct Sync</span>
+</div>
+<!-- Button Grid: 3 columns for tactile, glove-friendly mobile interaction -->
+<div class="grid grid-cols-3 gap-2">
+<!-- Play / Pause -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-play-pause" type="button">
+<span class="material-symbols-outlined text-emerald-600 text-[22px]" id="icon-play-pause">pause_circle</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700" id="label-play-pause">Pause Feed</span>
+</button>
+<!-- Stop Command -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-stop" type="button">
+<span class="material-symbols-outlined text-rose-600 text-[22px]">stop_circle</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700">Stop Stream</span>
+</button>
+<!-- Snapshot -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-snapshot" type="button">
+<span class="material-symbols-outlined text-teal-600 text-[22px]">photo_camera</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700">Snapshot</span>
+</button>
+<!-- Fullscreen -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-fullscreen" type="button">
+<span class="material-symbols-outlined text-slate-700 text-[22px]">fullscreen</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700">Fullscreen</span>
+</button>
+<!-- Refresh / Resync -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-refresh" type="button">
+<span class="material-symbols-outlined text-amber-600 text-[22px]">sync</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700">Refresh</span>
+</button>
+<!-- IR Night Mode -->
+<button class="min-h-[52px] px-2 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-800 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]" id="ctrl-nightmode" type="button">
+<span class="material-symbols-outlined text-slate-700 text-[22px]" id="icon-nightmode">nightlight</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tight text-slate-700" id="label-nightmode">IR Mode: Off</span>
+</button>
+</div>
+</div>
+</section>
+<!-- CONNECTION STATUS & NODE TELEMETRY CARD -->
+<section class="px-margin mb-5">
+<div class="rounded-2xl bg-white border border-slate-200/90 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+<div class="flex items-center justify-between mb-3.5 pb-2 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">router</span>
+</div>
+<div>
+<h2 class="font-headline-md text-[16px] text-slate-900 leading-tight font-bold">Camera Connection</h2>
+<span class="font-body-sm text-body-sm text-slate-500">Edge Telemetry &amp; Node Health</span>
+</div>
+</div>
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] text-[#065f46]">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="font-label-sm text-label-sm font-bold uppercase">Connected</span>
+</div>
+</div>
+<!-- Node Specs List -->
+<div class="space-y-2.5">
+<!-- Row 1: Node -->
+<div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="material-symbols-outlined text-emerald-600 text-[20px] flex-shrink-0">developer_board</span>
+<div class="min-w-0">
+<div class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-bold">Hardware Node</div>
+<div class="font-body-md text-body-md text-slate-900 font-semibold truncate">Raspberry Pi 4B (192.168.1.104)</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium flex-shrink-0">LAN eth0</span>
+</div>
+<!-- Row 2: Stream Protocol -->
+<div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="material-symbols-outlined text-teal-600 text-[20px] flex-shrink-0">stream</span>
+<div class="min-w-0">
+<div class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-bold">Stream Protocol</div>
+<div class="font-body-md text-body-md text-slate-900 font-semibold truncate">RTSP via WebRTC / H.264</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-medium flex-shrink-0">Port 8554</span>
+</div>
+<!-- Row 3: Edge AI Inference -->
+<div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="material-symbols-outlined text-amber-600 text-[20px] flex-shrink-0">psychology</span>
+<div class="min-w-0">
+<div class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-bold">Edge AI Inference</div>
+<div class="font-body-md text-body-md text-slate-900 font-semibold truncate">YOLOv8-Nano running (14.2 ms/frame)</div>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold flex-shrink-0">NPU 71 FPS</span>
+</div>
+<!-- Row 4: Storage -->
+<div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="material-symbols-outlined text-slate-500 text-[20px] flex-shrink-0">sd_card</span>
+<div class="min-w-0">
+<div class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-bold">Edge Storage</div>
+<div class="font-body-md text-body-md text-slate-900 font-semibold truncate">64GB MicroSD (42GB free)</div>
+</div>
+</div>
+<div class="w-16 bg-slate-200 h-2 rounded-full overflow-hidden flex-shrink-0">
+<div class="bg-emerald-600 h-full rounded-full" style="width: 35%;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- INTERACTIVE OFFLINE STATE SIMULATOR TOGGLE -->
+<section class="px-margin mb-2">
+<div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 flex flex-col gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-amber-600 text-[20px]">science</span>
+<div>
+<h3 class="font-label-md text-label-md text-slate-900 font-bold">Hardware Simulator</h3>
+<p class="font-body-sm text-body-sm text-slate-500">Preview field failure &amp; offline error recovery UX</p>
+</div>
+</div>
+<!-- Toggle Switch -->
+<button aria-checked="false" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition-colors focus:outline-none" id="btn-toggle-offline-sim" role="switch" type="button">
+<span class="sr-only">Toggle Offline State</span>
+<span class="inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform translate-x-1" id="offline-switch-handle"></span>
+</button>
+</div>
+<!-- Quick action info note -->
+<div class="text-slate-600 text-body-sm bg-slate-50 border border-slate-100 p-2.5 rounded-xl flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-amber-600 flex-shrink-0 mt-0.5">info</span>
+<span>Simulating an offline state swaps the stream monitor into rugged diagnostics mode for instant operator resolution.</span>
+</div>
+</div>
+</section>
+</div>
+<script>
+  (function() {
+    // Real-time live timestamp ticker
+    const clockEl = document.getElementById('video-stream-clock');
+    function updateClock() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      if (clockEl) {
+        clockEl.textContent = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} IST`;
+      }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Elements
+    const activeStream = document.getElementById('video-stream-active');
+    const offlineStream = document.getElementById('video-stream-offline');
+    const toggleSimBtn = document.getElementById('btn-toggle-offline-sim');
+    const switchHandle = document.getElementById('offline-switch-handle');
+    const statusPill = document.getElementById('stream-status-pill');
+    
+    // Play / Pause toggle
+    const ctrlPlayPause = document.getElementById('ctrl-play-pause');
+    const iconPlayPause = document.getElementById('icon-play-pause');
+    const labelPlayPause = document.getElementById('label-play-pause');
+    let isPlaying = true;
+
+    if (ctrlPlayPause) {
+      ctrlPlayPause.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          iconPlayPause.textContent = 'pause_circle';
+          labelPlayPause.textContent = 'Pause Feed';
+          if (activeStream) activeStream.style.filter = 'none';
+        } else {
+          iconPlayPause.textContent = 'play_circle';
+          labelPlayPause.textContent = 'Resume Feed';
+          if (activeStream) activeStream.style.filter = 'grayscale(50%) brightness(0.8)';
+        }
+      });
+    }
+
+    // Stop Control
+    const ctrlStop = document.getElementById('ctrl-stop');
+    if (ctrlStop) {
+      ctrlStop.addEventListener('click', () => {
+        setOfflineState(true);
+      });
+    }
+
+    // Snapshot button micro-interaction
+    const ctrlSnapshot = document.getElementById('ctrl-snapshot');
+    const snapshotToast = document.getElementById('snapshot-toast');
+    if (ctrlSnapshot && snapshotToast) {
+      ctrlSnapshot.addEventListener('click', () => {
+        snapshotToast.classList.remove('hidden');
+        setTimeout(() => {
+          snapshotToast.classList.add('hidden');
+        }, 3000);
+      });
+    }
+
+    // Fullscreen trigger (mobile browser API)
+    const ctrlFullscreen = document.getElementById('ctrl-fullscreen');
+    const viewportWrapper = document.getElementById('video-viewport-wrapper');
+    if (ctrlFullscreen && viewportWrapper) {
+      ctrlFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          if (viewportWrapper.requestFullscreen) {
+            viewportWrapper.requestFullscreen();
+          } else if (viewportWrapper.webkitRequestFullscreen) {
+            viewportWrapper.webkitRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      });
+    }
+
+    // Refresh control animation
+    const ctrlRefresh = document.getElementById('ctrl-refresh');
+    if (ctrlRefresh) {
+      ctrlRefresh.addEventListener('click', () => {
+        const icon = ctrlRefresh.querySelector('.material-symbols-outlined');
+        if (icon) {
+          icon.classList.add('animate-spin');
+          setTimeout(() => {
+            icon.classList.remove('animate-spin');
+          }, 800);
+        }
+      });
+    }
+
+    // IR Night Mode toggle
+    const ctrlNightmode = document.getElementById('ctrl-nightmode');
+    const nightFilter = document.getElementById('night-vision-filter');
+    const labelNight = document.getElementById('label-nightmode');
+    let isNightMode = false;
+
+    if (ctrlNightmode && nightFilter && labelNight) {
+      ctrlNightmode.addEventListener('click', () => {
+        isNightMode = !isNightMode;
+        if (isNightMode) {
+          nightFilter.classList.remove('opacity-0');
+          nightFilter.classList.add('opacity-100');
+          labelNight.textContent = 'IR Mode: ON';
+          ctrlNightmode.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+        } else {
+          nightFilter.classList.remove('opacity-100');
+          nightFilter.classList.add('opacity-0');
+          labelNight.textContent = 'IR Mode: OFF';
+          ctrlNightmode.classList.remove('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+        }
+      });
+    }
+
+    // Simulator Switch Logic
+    let isOffline = false;
+
+    function setOfflineState(state) {
+      isOffline = state;
+      if (isOffline) {
+        activeStream.classList.add('hidden');
+        offlineStream.classList.remove('hidden');
+        if (switchHandle) {
+          switchHandle.classList.remove('translate-x-1');
+          switchHandle.classList.add('translate-x-6');
+        }
+        if (toggleSimBtn) {
+          toggleSimBtn.classList.remove('bg-slate-200');
+          toggleSimBtn.classList.add('bg-emerald-600');
+          toggleSimBtn.setAttribute('aria-checked', 'true');
+        }
+        if (statusPill) {
+          statusPill.textContent = 'Offline';
+          statusPill.parentElement.classList.remove('bg-emerald-50', 'border-emerald-200', 'text-emerald-700');
+          statusPill.parentElement.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-700');
+        }
+      } else {
+        offlineStream.classList.add('hidden');
+        activeStream.classList.remove('hidden');
+        if (switchHandle) {
+          switchHandle.classList.remove('translate-x-6');
+          switchHandle.classList.add('translate-x-1');
+        }
+        if (toggleSimBtn) {
+          toggleSimBtn.classList.add('bg-slate-200');
+          toggleSimBtn.classList.remove('bg-emerald-600');
+          toggleSimBtn.setAttribute('aria-checked', 'false');
+        }
+        if (statusPill) {
+          statusPill.textContent = 'Live Feed';
+          statusPill.parentElement.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-700');
+          statusPill.parentElement.classList.remove('bg-rose-50', 'border-rose-200', 'text-rose-700');
+        }
+      }
+    }
+
+    if (toggleSimBtn) {
+      toggleSimBtn.addEventListener('click', () => {
+        setOfflineState(!isOffline);
+      });
+    }
+
+    // Offline reconnect button
+    const btnReconnect = document.getElementById('btn-reconnect-offline');
+    if (btnReconnect) {
+      btnReconnect.addEventListener('click', () => {
+        setOfflineState(false);
+      });
+    }
+
+    // Offline diagnose button
+    const btnDiagnose = document.getElementById('btn-diagnostics');
+    if (btnDiagnose) {
+      btnDiagnose.addEventListener('click', () => {
+        alert('Diagnostic log: Ping 192.168.1.104 timed out (3 retries). Node DC Voltage: 10.8V (Critically Low). Please check solar panel MPPT charger.');
+      });
+    }
+  })();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.04)]" data-active-classes="text-emerald-600 [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-emerald-700 [&amp;_.tab-icon]:text-emerald-600"><div class="flex items-center justify-around h-16 px-space-xs max-w-lg mx-auto w-full"><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="home" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">home</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Home</span></a><a aria-current="page" class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-colors text-emerald-600 [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-emerald-700 [&amp;_.tab-icon]:text-emerald-600" data-path="live-feed" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">videocam</span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-rose-600 ring-2 ring-white animate-ping"></span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-rose-600 ring-1 ring-white"></span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5 font-bold">Live</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="weather-microclimate" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">wb_sunny</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Weather</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="detections" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">filter_center_focus</span><span class="absolute top-0 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white font-label-sm text-[10px] flex items-center justify-center font-bold">1</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Detections</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="farm-profile" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">manage_accounts</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Profile</span></a></div></nav></body></html>

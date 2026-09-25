@@ -1,0 +1,76 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        outline: "#6d7a72",
+        "outline-variant": "#e2e8f0",
+        background: "#f8faf8",
+        surface: "#f8faf8",
+        "on-background": "#111827",
+        "on-surface": "#111827",
+        "on-surface-variant": "#4b5563",
+        "surface-container-lowest": "#ffffff",
+        "surface-container-low": "#f1f5f2",
+        "surface-container": "#ffffff",
+        "surface-container-high": "#f0fdf4",
+        "surface-container-highest": "#e2e8f0",
+        primary: {
+          DEFAULT: "#059669",
+          hover: "#047857",
+          active: "#10b981",
+          container: "#ecfdf5",
+          "on-container": "#065f46",
+        },
+        "on-primary": "#ffffff",
+        secondary: {
+          DEFAULT: "#0284c7",
+          container: "#e0f2fe",
+        },
+        "on-secondary": "#ffffff",
+        tertiary: {
+          DEFAULT: "#d97706",
+          container: "#fef3c7",
+        },
+        "on-tertiary": "#ffffff",
+        error: {
+          DEFAULT: "#dc2626",
+          container: "#fee2e2",
+        },
+      },
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        sm: "0.125rem",
+        md: "0.375rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+        "2xl": "1rem",
+        full: "9999px",
+      },
+      spacing: {
+        margin: "1rem",
+        gutter: "1rem",
+        "gutter-sm": "0.75rem",
+        "space-xs": "0.25rem",
+        "space-sm": "0.5rem",
+        "space-md": "0.875rem",
+        "space-lg": "1.25rem",
+        "space-xl": "1.75rem",
+        "margin-desktop": "2rem",
+        "margin-tablet": "1.5rem",
+      },
+      fontFamily: {
+        headline: ["Space Grotesk", "sans-serif"],
+        body: ["Inter", "Manrope", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
+      },
+    },
+  },
+  plugins: [],
+};

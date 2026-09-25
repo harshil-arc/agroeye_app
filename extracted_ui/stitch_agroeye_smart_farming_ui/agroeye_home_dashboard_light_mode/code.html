@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { outline: "#6d7a72", "outline-variant": "#e2e8f0", background: "#f8faf8", surface: "#f8faf8", "on-background": "#111827", "on-surface": "#111827", "on-surface-variant": "#4b5563", "surface-container-lowest": "#ffffff", "surface-container-low": "#f1f5f2", "surface-container": "#ffffff", "surface-container-high": "#f0fdf4", "surface-container-highest": "#e2e8f0", primary: "#059669", "primary-container": "#ecfdf5", "on-primary": "#ffffff", "on-primary-container": "#065f46", secondary: "#0284c7", "secondary-container": "#e0f2fe", "on-secondary": "#ffffff", tertiary: "#d97706", "tertiary-container": "#fef3c7", "on-tertiary": "#ffffff", error: "#dc2626", "error-container": "#fee2e2" }, borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" }, spacing: { margin: "1rem", gutter: "1rem", "gutter-sm": "0.75rem", "space-md": "0.875rem", "margin-desktop": "2rem", "space-sm": "0.5rem", "space-xl": "1.75rem", "space-lg": "1.25rem", "margin-tablet": "1.5rem", "space-xs": "0.25rem" }, fontFamily: { "headline-xl": ["Space Grotesk"], "headline-lg": ["Space Grotesk"], "headline-md": ["Space Grotesk"], "telemetry-numeral-lg": ["Space Grotesk"], "telemetry-numeral-md": ["Space Grotesk"], "headline-xl-mobile": ["Space Grotesk"], "body-lg": ["Manrope"], "label-md": ["Space Grotesk"], "body-md": ["Manrope"], "body-sm": ["Manrope"], "label-sm": ["Space Grotesk"] }, fontSize: { "headline-xl": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-lg": ["28px", { lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600" }], "headline-md": ["22px", { lineHeight: "28px", fontWeight: "600" }], "telemetry-numeral-lg": ["44px", { lineHeight: "48px", letterSpacing: "-0.03em", fontWeight: "700" }], "telemetry-numeral-md": ["28px", { lineHeight: "32px", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-xl-mobile": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }], "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }], "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.06em", fontWeight: "600" }], "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }], "body-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }], "label-sm": ["10px", { lineHeight: "12px", letterSpacing: "0.08em", fontWeight: "700" }] } } } };</script><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#f8faf8;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/95 backdrop-blur-xl border-b border-slate-200/80 shadow-sm"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm min-w-0"><img alt="AgroEye Brand Emblem" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1X56PUgOSUq9n1Czk4xtFlYuJ2QhUAyu9CWf3BY83r1GoCEmSCa2ZnxRmxhe3HXv6SruUijv5pQLJX_FHJfR2Sndhi-1nG5CMeIikLn09-ai40J_D9FOJ3Vtk-HxCYFENuHEUqIAWfdFAUzH0xDL2lF1-K4zVFnaN9_NMgY4zwxPJ_Ydc2_NdceWAVuHSoiXcJraJbCnT5ih827cQqwqpOwP2n4VYUdO96y7W8dJ4G73w8eV__AAlRubYk"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md text-slate-900 tracking-tight leading-none">AgroEye</span><span class="font-label-sm text-label-sm text-slate-500 tracking-wider uppercase hidden sm:inline-block">• Home</span></div><span class="font-label-sm text-label-sm text-slate-500 truncate">📍 Udaipur, RJ</span></div></div><div class="flex items-center gap-space-sm flex-shrink-0"><div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/60"><span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span><span class="font-label-sm text-label-sm uppercase text-emerald-700 font-bold tracking-wider">Live Node</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-600/20 shadow-sm flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1W7Z0YmoEh7fgrCcTh2Zj1tOtDNvssAXZe49VQblwr0m_SajWroswX9VueDJ1XL7Oq754rKujEHCOicP945BMczKQk4C39fpFmtoALbhwnKL3sFZIf8n55_snPfmLlgYwxzHco0DLEj_QUM6odyMdwom9pPogxl7f4pdZO448qjd2hrxU0Kf9gYiaKFqhnGa9dbjFmzz6OG38MEYvVN2qP5x4cGNJCgIbnr67uhoLfOWiyTUx2RyQb0eg"/></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-surface"><div class="flex flex-col w-full pb-6">
+<!-- Interactive Simulation Bar & Edge Mode Sync Banner -->
+<div class="px-margin pt-2 pb-1">
+<div class="w-full rounded-xl bg-white border border-slate-200/80 p-2.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-emerald-600 text-lg flex-shrink-0" id="mode-icon">wifi_tethering</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-600 truncate" id="mode-text">
+          Telemetry: <strong class="text-emerald-700 font-bold">Edge Live Mode</strong>
+</span>
+</div>
+<button class="h-8 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-label-sm text-label-sm uppercase tracking-wider active:scale-95 transition-all flex items-center gap-1.5 shadow-sm border border-slate-200" id="mode-toggle-btn">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600" id="toggle-indicator-dot"></span>
+<span id="toggle-label">Simulate Offline</span>
+</button>
+</div>
+<!-- Cached Notice Banner (Dynamic state) -->
+<div class="hidden mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 flex items-center gap-2 shadow-sm" id="offline-cache-banner">
+<span class="material-symbols-outlined text-base text-amber-600">cloud_off</span>
+<p class="font-body-sm text-body-sm text-slate-800 flex-1">
+        Showing latest cached farm data <span class="text-slate-500">(Edge node buffer #04 synced 4m ago)</span>
+</p>
+</div>
+</div>
+<!-- Top Greeting & Live Farm Header -->
+<section class="px-margin pt-2 pb-3 flex flex-col gap-2">
+<div class="flex items-start justify-between">
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-emerald-700 font-bold">Agronomic Node 01</span>
+<h1 class="font-headline-lg text-headline-lg text-slate-900 font-bold tracking-tight">Good Morning, Farmer</h1>
+<p class="font-body-sm text-body-sm text-slate-600 flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-sm text-emerald-600">location_on</span>
+          My Farm • Udaipur, Rajasthan
+        </p>
+</div>
+<div class="flex flex-col items-end gap-1 flex-shrink-0">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 shadow-sm" id="telemetry-chip">
+<span class="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
+<span class="font-label-sm text-label-sm text-emerald-700 uppercase font-bold tracking-wide">System Online</span>
+</div>
+<span class="font-label-sm text-label-sm text-slate-500" id="sync-timestamp">Updated 12 sec ago</span>
+</div>
+</div>
+</section>
+<!-- Farm Environment Status Strip -->
+<section class="px-margin pb-3">
+<div class="w-full rounded-xl bg-white border border-slate-200/80 p-3 flex items-center justify-between gap-2 overflow-x-auto shadow-sm">
+<div class="flex items-center gap-2 flex-shrink-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-500 font-bold">Environment</span>
+</div>
+<div class="flex items-center gap-3 flex-shrink-0">
+<div class="inline-flex items-center gap-1 text-slate-800 font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+<span class="font-semibold">Water Normal</span>
+</div>
+<span class="text-slate-300 font-label-sm text-label-sm">•</span>
+<div class="inline-flex items-center gap-1 text-slate-800 font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+<span class="font-semibold">Temp Normal</span>
+</div>
+<span class="text-slate-300 font-label-sm text-label-sm">•</span>
+<div class="inline-flex items-center gap-1 text-slate-800 font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+<span class="font-semibold">Air Good</span>
+</div>
+</div>
+</div>
+</section>
+<!-- High Priority Weather Alert -->
+<section class="px-margin pb-4">
+<div class="w-full rounded-xl bg-amber-50/70 border border-amber-200 p-3.5 shadow-sm relative overflow-hidden">
+<div class="absolute -right-4 -bottom-4 w-28 h-28 bg-amber-200/30 rounded-full blur-2xl pointer-events-none"></div>
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 border border-amber-200/80 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-2xl">thunderstorm</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2 mb-0.5">
+<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-label-sm text-label-sm uppercase font-bold tracking-wider">Advisory</span>
+<span class="font-label-sm text-label-sm text-slate-500">Tomorrow</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-slate-900 font-bold leading-snug">Heavy Rain Expected</h2>
+<p class="font-body-sm text-body-sm text-slate-600 mt-0.5 leading-relaxed">
+            Rain is likely in your Udaipur farm region tomorrow (70% probability). Check drainage valves.
+          </p>
+<div class="mt-3">
+<a class="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg bg-white border border-amber-200 text-amber-800 hover:bg-amber-50 font-label-md text-label-md uppercase tracking-wider active:scale-95 transition-all shadow-sm" href="#">
+<span>View Weather</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2x2 Telemetry Metrics Grid -->
+<section class="px-margin pb-4">
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-600 text-base">sensors</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider text-slate-900 font-bold">Telemetry Overview</h2>
+</div>
+<span class="font-label-sm text-label-sm text-slate-500">Node #UD-094</span>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<!-- 1. Soil Moisture Card -->
+<div class="rounded-xl bg-white border border-slate-200/80 p-3.5 flex flex-col justify-between shadow-sm" data-source="firebase/soil_moisture">
+<div class="flex items-start justify-between gap-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-600 text-lg">psychiatry</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-600 font-bold">Soil</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-label-sm text-label-sm uppercase font-bold">Normal</span>
+</div>
+<div class="mt-2.5 mb-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-telemetry-numeral-md text-telemetry-numeral-md text-slate-900 font-bold" id="val-soil">42</span>
+<span class="font-label-md text-label-md text-slate-500 font-bold">%</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-500 block">Volumetric Water</span>
+</div>
+<div class="w-full mt-1">
+<div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+<div class="bg-emerald-600 h-1.5 rounded-full" style="width: 42%;"></div>
+</div>
+<div class="flex justify-between items-center mt-1.5 text-slate-500 font-label-sm text-label-sm">
+<span>Target: 35-50%</span>
+<span class="font-semibold text-slate-700">Plot A</span>
+</div>
+</div>
+</div>
+<!-- 2. Temperature Card -->
+<div class="rounded-xl bg-white border border-slate-200/80 p-3.5 flex flex-col justify-between shadow-sm" data-source="firebase/temperature">
+<div class="flex items-start justify-between gap-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-amber-600 text-lg">thermostat</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-600 font-bold">Temp</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-label-sm text-label-sm uppercase font-bold">Normal</span>
+</div>
+<div class="mt-2.5 mb-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-telemetry-numeral-md text-telemetry-numeral-md text-slate-900 font-bold" id="val-temp">28.4</span>
+<span class="font-label-md text-label-md text-slate-500 font-bold">°C</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-500 block">Canopy Ambience</span>
+</div>
+<div class="w-full mt-1 pt-1 bg-slate-50 border border-slate-100 rounded p-1">
+<div class="flex justify-between items-center font-label-sm text-label-sm text-slate-500">
+<span>Min <strong class="text-slate-800">21°C</strong></span>
+<span>Max <strong class="text-amber-700">32°C</strong></span>
+</div>
+</div>
+</div>
+<!-- 3. Humidity Card -->
+<div class="rounded-xl bg-white border border-slate-200/80 p-3.5 flex flex-col justify-between shadow-sm" data-source="firebase/humidity">
+<div class="flex items-start justify-between gap-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sky-600 text-lg">water_drop</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-600 font-bold">Air Moist</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-label-sm text-label-sm uppercase font-bold">Good</span>
+</div>
+<div class="mt-2.5 mb-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-telemetry-numeral-md text-telemetry-numeral-md text-slate-900 font-bold" id="val-humidity">67</span>
+<span class="font-label-md text-label-md text-slate-500 font-bold">%</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-500 block">Relative Humidity</span>
+</div>
+<div class="w-full mt-1">
+<div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+<div class="bg-sky-500 h-1.5 rounded-full" style="width: 67%;"></div>
+</div>
+<div class="flex justify-between items-center mt-1.5 text-slate-500 font-label-sm text-label-sm">
+<span>VPD: 1.1 kPa</span>
+<span class="font-semibold text-slate-700">Optimum</span>
+</div>
+</div>
+</div>
+<!-- 4. Air Quality Card -->
+<div class="rounded-xl bg-white border border-slate-200/80 p-3.5 flex flex-col justify-between shadow-sm" data-source="firebase/air_quality">
+<div class="flex items-start justify-between gap-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-600 text-lg">air</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-slate-600 font-bold">Quality</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-label-sm text-label-sm uppercase font-bold">Normal</span>
+</div>
+<div class="mt-2.5 mb-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-md text-headline-md text-slate-900 font-bold" id="val-aqi">AQI 48</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-500 block">Condition: Good</span>
+</div>
+<div class="w-full mt-1 pt-1 bg-slate-50 border border-slate-100 rounded p-1">
+<p class="font-label-sm text-label-sm text-slate-500 truncate">
+            PM2.5: <strong class="text-slate-800">12 µg/m³</strong>
+</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent AI Detection Banner -->
+<section class="px-margin pb-4">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-amber-600 text-base">filter_center_focus</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider text-slate-900 font-bold">Recent Edge AI Anomaly</h2>
+</div>
+<span class="font-label-sm text-label-sm text-slate-500">YOLOv8 Edge v2.3</span>
+</div>
+<div class="w-full rounded-xl bg-white border border-slate-200/80 p-3 shadow-sm flex flex-col sm:flex-row gap-3">
+<div class="relative w-full sm:w-28 h-32 sm:h-auto rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200">
+<img alt="Crop Leaf Anomaly Inspection" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1U9lzEr7P30yA9J61XCVqkYm_d-kwhGSKCw1J-FWPzhpp7Sknymcvrv1vKlwVoedhn3_Y5c7p-n0GsZzRqQqxVDmhhU9XoD14T40ObO-S1tJSXF-UlU6BIgnQixW0URT_8dxj9M6nPjTYPPMsZVs2C7Zh8d1h49rQf0YXZxF6ZvltQ1ne_T0VdB_BB5URgKfK5KSyJe0QxYpO6V5aws6q-WLWRhjzqs52tXkgVPkUOc2pgDPm2D5IwVOFk"/>
+<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-white/90 backdrop-blur-sm text-amber-800 border border-amber-200 font-label-sm text-label-sm font-bold shadow-xs">
+          PLOT A-3
+        </span>
+</div>
+<div class="flex-1 flex flex-col justify-between min-w-0">
+<div>
+<div class="flex items-center justify-between gap-2">
+<span class="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-label-sm text-label-sm uppercase font-bold tracking-wider">
+              Attention Required
+            </span>
+<span class="font-label-sm text-label-sm text-slate-500">2 min ago</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-slate-900 font-bold mt-1">Leaf Disease Detected</h3>
+<p class="font-body-sm text-body-sm text-slate-600 mt-0.5">
+            Blight lesion pattern detected on tomato canopy. Diagnostic confidence at <strong class="text-slate-900">94.2%</strong>.
+          </p>
+</div>
+<div class="mt-3 flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-emerald-700 font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-emerald-600">verified</span> Isolate &amp; Treat recommended
+          </span>
+<a class="h-9 px-3.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 font-label-md text-label-md uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-xs" href="#">
+<span>Inspect</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Camera Feed Preview -->
+<section class="px-margin pb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-600 text-base">videocam</span>
+<h2 class="font-label-md text-label-md uppercase tracking-wider text-slate-900 font-bold">Farm Optical Feed</h2>
+</div>
+<div class="inline-flex items-center gap-1 text-emerald-700 font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+<span>1080p • 18 fps</span>
+</div>
+</div>
+<div class="w-full rounded-xl bg-white border border-slate-200/80 overflow-hidden shadow-sm">
+<!-- Camera Viewport with HUD -->
+<div class="relative w-full aspect-video bg-slate-900">
+<img alt="Raspberry Pi Wide Farm Camera Feed" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1UIQ8XrJ9026OBMUdG3CdbB0MX-9jKy7dzdKEPltb9-bXM22Ka8LHikvI0oqZwF4PHGxDW2VwE0tkiGo6ZGWSlerheTwi9J_FdlhhVR6GvcH54CtnjFP7s_Q_njx3Rb4M9ZPzcMLEN1X3RpKsa6EqfdwompZ7mTTY-6uFSGH_fW63QBm9nQWVP7yO0daqHr0mdJ-hTjNYR5wvoSQJTom_WmC_EHwlZEgXQu1diJKBKQBxs7rLKg1L82M30"/>
+<!-- Live Camera HUD Overlays -->
+<div class="absolute inset-0 p-3 flex flex-col justify-between bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/50">
+<div class="flex items-center justify-between">
+<div class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-black/60 backdrop-blur-md">
+<span class="material-symbols-outlined text-rose-500 text-xs animate-pulse">radio_button_checked</span>
+<span class="font-label-sm text-label-sm text-rose-400 font-bold uppercase tracking-widest">REC</span>
+<span class="text-slate-200 font-label-sm text-label-sm">CAM #01 - RAJASTHAN PLOT A</span>
+</div>
+<div class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-slate-200 font-label-sm text-label-sm">
+              FOV 120° • N-NE
+            </div>
+</div>
+<div class="flex items-end justify-between">
+<div class="px-2 py-1 rounded bg-black/60 backdrop-blur-md">
+<span class="font-label-sm text-label-sm text-emerald-400 font-bold">EDGE-AI ACTIVE</span>
+<span class="font-label-sm text-label-sm text-slate-300 block">No trespassers • Canopy nominal</span>
+</div>
+<span class="font-label-sm text-label-sm text-slate-200 px-1.5 py-0.5 rounded bg-black/60">
+              Solar Bat: 98%
+            </span>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="p-3 bg-white flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-500 text-lg">pan_tool_alt</span>
+<span class="font-body-sm text-body-sm text-slate-600">Pan-Tilt-Zoom enabled</span>
+</div>
+<a class="h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-label-md uppercase font-bold tracking-wider flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" href="#">
+<span>View Live Camera</span>
+<span class="material-symbols-outlined text-lg">open_in_new</span>
+</a>
+</div>
+</div>
+</section>
+</div>
+<script>
+  (function() {
+    const toggleBtn = document.getElementById('mode-toggle-btn');
+    const toggleLabel = document.getElementById('toggle-label');
+    const toggleDot = document.getElementById('toggle-indicator-dot');
+    const modeText = document.getElementById('mode-text');
+    const modeIcon = document.getElementById('mode-icon');
+    const chip = document.getElementById('telemetry-chip');
+    const cacheBanner = document.getElementById('offline-cache-banner');
+    const syncTime = document.getElementById('sync-timestamp');
+
+    let isOffline = false;
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function() {
+        isOffline = !isOffline;
+
+        if (isOffline) {
+          toggleLabel.textContent = "Resume Live";
+          toggleDot.classList.remove('bg-emerald-600');
+          toggleDot.classList.add('bg-amber-600');
+          modeIcon.textContent = "cloud_off";
+          modeIcon.classList.remove('text-emerald-600');
+          modeIcon.classList.add('text-amber-600');
+          modeText.innerHTML = 'Telemetry: <strong class="text-amber-700 font-bold">Offline Simulated</strong>';
+          
+          chip.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 shadow-sm';
+          chip.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-600"></span><span class="font-label-sm text-label-sm text-amber-800 uppercase font-bold tracking-wide">Cached Buffer</span>';
+          
+          cacheBanner.classList.remove('hidden');
+          syncTime.textContent = 'Synced 4 min ago';
+        } else {
+          toggleLabel.textContent = "Simulate Offline";
+          toggleDot.classList.remove('bg-amber-600');
+          toggleDot.classList.add('bg-emerald-600');
+          modeIcon.textContent = "wifi_tethering";
+          modeIcon.classList.remove('text-amber-600');
+          modeIcon.classList.add('text-emerald-600');
+          modeText.innerHTML = 'Telemetry: <strong class="text-emerald-700 font-bold">Edge Live Mode</strong>';
+          
+          chip.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 shadow-sm';
+          chip.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span><span class="font-label-sm text-label-sm text-emerald-700 uppercase font-bold tracking-wide">System Online</span>';
+          
+          cacheBanner.classList.add('hidden');
+          syncTime.textContent = 'Updated just now';
+        }
+      });
+    }
+  })();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-sm" data-active-classes="text-emerald-700 [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-emerald-700 [&amp;_.tab-icon]:text-emerald-700"><div class="flex items-center justify-around h-16 px-space-xs max-w-lg mx-auto w-full"><a aria-current="page" class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-colors text-emerald-700 [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-emerald-700 [&amp;_.tab-icon]:text-emerald-700 font-bold" data-path="home" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl text-emerald-700">home</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Home</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="live-feed" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">videocam</span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-ping"></span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-rose-500 ring-1 ring-white"></span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Live</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="weather-microclimate" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">wb_sunny</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Weather</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="detections" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">filter_center_focus</span><span class="absolute top-0 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white font-label-sm text-label-sm flex items-center justify-center font-bold">1</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Detections</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="farm-profile" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">manage_accounts</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Profile</span></a></div></nav></body></html>

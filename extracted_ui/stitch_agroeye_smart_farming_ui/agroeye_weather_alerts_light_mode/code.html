@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "on-tertiary-fixed-variant": "#004b73",
+        "tertiary": "#006194",
+        "on-surface-variant": "#3d4a42",
+        "surface-bright": "#f9f9ff",
+        "background": "#F8FAF9",
+        "on-primary": "#ffffff",
+        "on-background": "#141b2b",
+        "inverse-surface": "#293040",
+        "on-secondary-fixed-variant": "#0b513d",
+        "surface-container": "#f1f5f3",
+        "primary": "#006948",
+        "surface-tint": "#006c4a",
+        "tertiary-fixed-dim": "#93ccff",
+        "on-tertiary": "#ffffff",
+        "secondary-fixed": "#b0f0d6",
+        "secondary": "#2b6954",
+        "on-secondary-container": "#306d58",
+        "surface-container-highest": "#e2e8e5",
+        "secondary-fixed-dim": "#95d3ba",
+        "on-error": "#ffffff",
+        "on-surface": "#0f172a",
+        "surface-container-high": "#e9efe9",
+        "primary-container": "#00855d",
+        "on-primary-container": "#f5fff7",
+        "tertiary-container": "#007bb9",
+        "surface": "#F8FAF9",
+        "surface-dim": "#e2e8f0",
+        "inverse-primary": "#68dba9",
+        "primary-fixed-dim": "#68dba9",
+        "on-primary-fixed": "#002114",
+        "tertiary-fixed": "#cce5ff",
+        "on-secondary-fixed": "#002117",
+        "primary-fixed": "#85f8c4",
+        "surface-variant": "#e2e8f0",
+        "error": "#ba1a1a",
+        "error-container": "#ffdad6",
+        "secondary-container": "#adedd3",
+        "on-tertiary-fixed": "#001d31",
+        "outline-variant": "#e5e7eb",
+        "on-error-container": "#93000a",
+        "surface-container-low": "#ffffff",
+        "on-tertiary-container": "#fdfcff",
+        "inverse-on-surface": "#edf0ff",
+        "surface-container-lowest": "#ffffff",
+        "on-primary-fixed-variant": "#005137",
+        "on-secondary": "#ffffff",
+        "outline": "#6d7a72"
+      },
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        lg: "0.5rem",
+        xl: "0.75rem",
+        full: "0.75rem"
+      },
+      spacing: {
+        margin: "1rem",
+        gutter: "1rem",
+        "space-md": "1rem",
+        "space-sm": "0.5rem",
+        "space-lg": "1.5rem",
+        "space-xl": "2rem",
+        "space-xs": "0.25rem"
+      },
+      fontFamily: {
+        "headline-xl": ["Space Grotesk"],
+        "headline-lg": ["Space Grotesk"],
+        "headline-md": ["Space Grotesk"],
+        "headline-sm": ["Space Grotesk"],
+        "label-lg": ["Space Grotesk"],
+        "label-md": ["Space Grotesk"],
+        "label-sm": ["Space Grotesk"],
+        "body-lg": ["Inter"],
+        "body-md": ["Inter"],
+        "body-sm": ["Inter"],
+        "telemetry-numeral-lg": ["Space Grotesk"],
+        "telemetry-numeral-md": ["Space Grotesk"]
+      },
+      fontSize: {
+        "headline-xl": ["2.25rem", { lineHeight: "2.75rem", letterSpacing: "-0.015em", fontWeight: "600" }],
+        "headline-lg": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.01em", fontWeight: "600" }],
+        "headline-md": ["1.25rem", { lineHeight: "1.625rem", fontWeight: "600" }],
+        "headline-sm": ["1.125rem", { lineHeight: "1.5rem", fontWeight: "600" }],
+        "telemetry-numeral-lg": ["2.75rem", { lineHeight: "3rem", letterSpacing: "-0.03em", fontWeight: "700" }],
+        "telemetry-numeral-md": ["1.75rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "label-lg": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0.025em", fontWeight: "600" }],
+        "label-md": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.05em", fontWeight: "600" }],
+        "label-sm": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.06em", fontWeight: "700" }],
+        "body-lg": ["1rem", { lineHeight: "1.5rem", fontWeight: "400" }],
+        "body-md": ["0.875rem", { lineHeight: "1.375rem", fontWeight: "400" }],
+        "body-sm": ["0.75rem", { lineHeight: "1.125rem", fontWeight: "400" }]
+      }
+    }
+  }
+};</script><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#F8FAF9;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 0.5rem);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head><body class="bg-[#F8FAF9] font-body-md text-body-md text-slate-800 antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm min-w-0"><img alt="AgroEye Brand Emblem" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1X56PUgOSUq9n1Czk4xtFlYuJ2QhUAyu9CWf3BY83r1GoCEmSCa2ZnxRmxhe3HXv6SruUijv5pQLJX_FHJfR2Sndhi-1nG5CMeIikLn09-ai40J_D9FOJ3Vtk-HxCYFENuHEUqIAWfdFAUzH0xDL2lF1-K4zVFnaN9_NMgY4zwxPJ_Ydc2_NdceWAVuHSoiXcJraJbCnT5ih827cQqwqpOwP2n4VYUdO96y7W8dJ4G73w8eV__AAlRubYk"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md text-slate-900 tracking-tight leading-none">AgroEye</span><span class="font-label-sm text-label-sm text-slate-500 tracking-wider uppercase hidden sm:inline-block">• Weather Microclimate</span></div><span class="font-label-sm text-label-sm text-slate-500 truncate">📍 Udaipur, RJ</span></div></div><div class="flex items-center gap-space-sm flex-shrink-0"><div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200"><span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span><span class="font-label-sm text-label-sm uppercase text-emerald-800 font-bold tracking-wider">Live Node</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-600/20 flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1W7Z0YmoEh7fgrCcTh2Zj1tOtDNvssAXZe49VQblwr0m_SajWroswX9VueDJ1XL7Oq754rKujEHCOicP945BMczKQk4C39fpFmtoALbhwnKL3sFZIf8n55_snPfmLlgYwxzHco0DLEj_QUM6odyMdwom9pPogxl7f4pdZO448qjd2hrxU0Kf9gYiaKFqhnGa9dbjFmzz6OG38MEYvVN2qP5x4cGNJCgIbnr67uhoLfOWiyTUx2RyQb0eg"/></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-[#F8FAF9]"><div class="flex flex-col w-full px-margin py-space-md space-y-space-lg select-none">
+<!-- Microclimate Location Header Banner -->
+<section class="bg-white rounded-xl p-space-md shadow-sm border border-gray-200/80 flex items-center justify-between">
+<div class="flex flex-col min-w-0 pr-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-slate-900 tracking-tight">Farm Weather &amp; Microclimate</span>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="material-symbols-outlined text-primary text-base flex-shrink-0">location_on</span>
+<span class="font-body-md text-body-md text-slate-600 truncate">Udaipur, Rajasthan</span>
+<span class="font-label-sm text-label-sm text-primary px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 tracking-widest hidden sm:inline-block">24.5854° N, 73.7125° E</span>
+</div>
+</div>
+<button class="flex-shrink-0 h-10 px-3 bg-slate-50 hover:bg-slate-100 active:scale-95 transition rounded-lg border border-gray-200 flex items-center gap-1.5 text-slate-700" id="locBtn">
+<span class="material-symbols-outlined text-primary text-xl">tune</span>
+<span class="font-label-md text-label-md uppercase tracking-wider text-slate-700">GPS Node</span>
+</button>
+</section>
+<!-- Current Weather Telemetry Card -->
+<section class="relative overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/40 rounded-xl p-space-lg shadow-md border border-gray-200">
+<div class="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none"></div>
+<div class="absolute right-4 top-4 opacity-10 text-amber-500 pointer-events-none">
+<span class="material-symbols-outlined" style="font-size: 80px;">wb_sunny</span>
+</div>
+<div class="flex items-start justify-between relative z-10">
+<div class="flex flex-col">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 w-fit mb-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-emerald-800 uppercase tracking-wider font-semibold">Station 04 • Live Pulse</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-telemetry-numeral-lg text-telemetry-numeral-lg text-[#0F172A] tracking-tight font-bold">28°C</span>
+<span class="font-body-lg text-body-lg text-emerald-700 font-semibold">Partly Cloudy</span>
+</div>
+<p class="font-body-sm text-body-sm text-slate-500 mt-0.5 font-medium">High sensor accuracy across 12 Plot Nodes</p>
+</div>
+<div class="flex flex-col items-end">
+<div class="w-14 h-14 rounded-full bg-amber-50 border border-amber-200/70 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-amber-500" style="font-size: 34px; font-variation-settings: 'FILL' 1;">partly_cloudy_day</span>
+</div>
+</div>
+</div>
+<!-- Telemetry Sensor Matrix Grid (2x3) -->
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-space-md pt-space-md bg-slate-50/80 border border-gray-200/70 rounded-lg p-3">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-lg">thermostat</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">Feels Like</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold">30°C</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
+<span class="material-symbols-outlined text-lg">humidity_percentage</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">Humidity</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold">67% Sat</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 flex-shrink-0">
+<span class="material-symbols-outlined text-lg">air</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">Wind Speed</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">14 km/h NW</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
+<span class="material-symbols-outlined text-lg">wb_iridescent</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">UV Index</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold">6 (Moderate)</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+<span class="material-symbols-outlined text-lg">rainy</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">Precip Probability</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold">15% Today</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-lg">compress</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider font-medium">Pressure</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold">1012 hPa</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Weather Forecast Scrollable Strip -->
+<section class="flex flex-col space-y-2">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 uppercase tracking-wider font-bold">5-Day Crop Forecast</span>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Plot Zone A–E</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary uppercase font-bold">Swipe →</span>
+</div>
+<div class="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar -mx-margin px-margin">
+<!-- Card 1: Today -->
+<div class="flex-shrink-0 w-28 bg-white border border-gray-200 p-3 rounded-xl flex flex-col items-center justify-between space-y-2 shadow-sm">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase font-bold tracking-widest">Today</span>
+<span class="material-symbols-outlined text-amber-500 text-2xl" style="font-variation-settings: 'FILL' 1;">partly_cloudy_day</span>
+<div class="text-center">
+<span class="font-label-md text-label-md text-slate-900 font-bold block">28° / 21°</span>
+<div class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+<span class="material-symbols-outlined text-xs">water_drop</span>
+<span class="font-label-sm text-label-sm font-semibold">15%</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Tomorrow (Active Warning Highlight) -->
+<div class="flex-shrink-0 w-32 bg-white border-2 border-amber-400 p-3 rounded-xl flex flex-col items-center justify-between space-y-2 shadow-md relative overflow-hidden">
+<div class="absolute inset-x-0 top-0 h-1 bg-amber-500"></div>
+<div class="flex items-center gap-1">
+<span class="font-label-sm text-label-sm text-amber-700 uppercase font-bold tracking-wider">Tomorrow</span>
+</div>
+<span class="material-symbols-outlined text-blue-500 text-2xl animate-bounce" style="font-variation-settings: 'FILL' 1;">rainy</span>
+<div class="text-center">
+<span class="font-label-md text-label-md text-slate-900 font-bold block">30° / 20°</span>
+<div class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+<span class="material-symbols-outlined text-xs">water_drop</span>
+<span class="font-label-sm text-label-sm font-bold">70%</span>
+</div>
+</div>
+</div>
+<!-- Card 3: Friday -->
+<div class="flex-shrink-0 w-28 bg-white border border-gray-200 p-3 rounded-xl flex flex-col items-center justify-between space-y-2 shadow-sm">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase font-bold tracking-widest">Fri</span>
+<span class="material-symbols-outlined text-blue-500 text-2xl">rainy</span>
+<div class="text-center">
+<span class="font-label-md text-label-md text-slate-900 font-bold block">27° / 19°</span>
+<div class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+<span class="material-symbols-outlined text-xs">water_drop</span>
+<span class="font-label-sm text-label-sm font-semibold">65%</span>
+</div>
+</div>
+</div>
+<!-- Card 4: Saturday -->
+<div class="flex-shrink-0 w-28 bg-white border border-gray-200 p-3 rounded-xl flex flex-col items-center justify-between space-y-2 shadow-sm">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase font-bold tracking-widest">Sat</span>
+<span class="material-symbols-outlined text-amber-500 text-2xl" style="font-variation-settings: 'FILL' 1;">wb_sunny</span>
+<div class="text-center">
+<span class="font-label-md text-label-md text-slate-900 font-bold block">29° / 22°</span>
+<div class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+<span class="material-symbols-outlined text-xs">water_drop</span>
+<span class="font-label-sm text-label-sm font-semibold">10%</span>
+</div>
+</div>
+</div>
+<!-- Card 5: Sunday -->
+<div class="flex-shrink-0 w-28 bg-white border border-gray-200 p-3 rounded-xl flex flex-col items-center justify-between space-y-2 shadow-sm">
+<span class="font-label-sm text-label-sm text-slate-500 uppercase font-bold tracking-widest">Sun</span>
+<span class="material-symbols-outlined text-amber-500 text-2xl" style="font-variation-settings: 'FILL' 1;">wb_sunny</span>
+<div class="text-center">
+<span class="font-label-md text-label-md text-slate-900 font-bold block">31° / 23°</span>
+<div class="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+<span class="material-symbols-outlined text-xs">water_drop</span>
+<span class="font-label-sm text-label-sm font-semibold">5%</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Weather Alert Banner (Active State) - Critical Light Amber Card -->
+<section class="bg-[#FEF3C7] border-2 border-[#FCD34D] rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all duration-300" id="heavyRainAlert">
+<div class="flex items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-amber-200/80 border border-amber-300 flex items-center justify-center text-[#92400E] flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md text-[#92400E] font-bold tracking-wide uppercase">Critical Micro-Advisory</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-amber-200/80 text-[#92400E] font-bold border border-amber-300">70% PROB</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-slate-900 tracking-tight mt-1">🌧 Heavy Rain Expected</h3>
+<p class="font-label-sm text-label-sm text-[#92400E]/80 font-semibold mt-0.5">Tomorrow • In Effect: 04:00 AM – 06:00 PM</p>
+<p class="font-body-md text-body-md text-[#92400E] mt-2 leading-relaxed font-medium">
+          Heavy precipitation volume may affect low-lying roots. Verify channel gate valve 03 and plot bunding. High saturation hazard in Plot A.
+        </p>
+<!-- Advisory Quick Actions -->
+<div class="flex items-center gap-2 mt-space-md">
+<button class="flex-1 h-12 bg-primary hover:bg-emerald-700 text-white font-headline-md text-label-md uppercase font-bold rounded-lg flex items-center justify-center gap-1.5 shadow active:scale-[0.98] transition" id="viewAdvisoryBtn">
+<span>View Action Advisory</span>
+<span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+<button class="h-12 px-4 bg-white/80 hover:bg-white text-slate-700 border border-amber-300 font-label-md text-label-md font-semibold rounded-lg active:scale-95 transition" id="dismissAlertBtn">
+            Dismiss
+          </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Empty / Safe State Banner (Demonstration toggleable state) -->
+<section class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-space-md shadow-sm items-center justify-between" id="safeStateNotice">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+<span class="material-symbols-outlined text-2xl">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-emerald-800 font-bold uppercase tracking-wider">All Systems Nominal</span>
+<span class="font-body-md text-body-md text-emerald-700">✓ No active severe weather hazards for Udaipur microclimate</span>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-white border border-emerald-300 rounded-lg font-label-sm text-label-sm text-primary uppercase font-bold tracking-wider" id="restoreAlertBtn">
+      Show Active
+    </button>
+</section>
+<!-- Risk Assessment Matrix (5 Specific Hazards) -->
+<section class="flex flex-col space-y-space-sm pt-1">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 uppercase tracking-wider font-bold">Microclimate Risk Matrix</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-slate-100 border border-gray-200 text-slate-600 font-medium">Automated Sensor Fusion</span>
+</div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">5 Vectors Evaluated</span>
+</div>
+<div class="grid grid-cols-1 gap-2.5">
+<!-- 1. Heavy Rain (Active Warning) -->
+<div class="bg-white border-2 border-amber-300 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 flex-shrink-0">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">rainy</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">Heavy Rain</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-amber-100 text-[#92400E] border border-amber-300 font-bold tracking-wide uppercase">Active Alert</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-600 mt-0.5">High Risk: 70% probability tomorrow morning</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-amber-600 text-xl flex-shrink-0">warning</span>
+</div>
+<!-- 2. Extreme Heat (Neutral / Safe) -->
+<div class="bg-white border border-gray-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-2xl">local_fire_department</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">Extreme Heat</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#047857] border border-emerald-200 font-bold tracking-wide uppercase">Safe</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-600 mt-0.5">Normal: 28°C Max (Optimal threshold)</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-emerald-600 text-xl flex-shrink-0">check_circle</span>
+</div>
+<!-- 3. Strong Wind (Neutral / Safe) -->
+<div class="bg-white border border-gray-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-2xl">air</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">Strong Wind</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#047857] border border-emerald-200 font-bold tracking-wide uppercase">Safe</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-600 mt-0.5">Low: 14 km/h gust speeds (No lodging hazard)</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-emerald-600 text-xl flex-shrink-0">check_circle</span>
+</div>
+<!-- 4. Thunderstorm (Watch State) -->
+<div class="bg-white border border-gray-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0">
+<span class="material-symbols-outlined text-2xl">thunderstorm</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">Thunderstorm</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-bold tracking-wide uppercase">Watch</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-600 mt-0.5">Possible late evening lightning activity</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-sky-600 text-xl flex-shrink-0">visibility</span>
+</div>
+<!-- 5. Flood Risk (Moderate State) -->
+<div class="bg-white border border-gray-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
+<span class="material-symbols-outlined text-2xl">tsunami</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md text-slate-900 font-bold truncate">Flood Risk</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold tracking-wide uppercase">Moderate</span>
+</div>
+<span class="font-body-sm text-body-sm text-slate-600 mt-0.5">Drainage canals open; soil absorption stable</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-amber-600 text-xl flex-shrink-0">info</span>
+</div>
+</div>
+</section>
+<!-- Agronomic Advisory Action Card (Tied to active alert) -->
+<section class="bg-white border border-gray-200 rounded-xl p-space-md shadow-sm space-y-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">psychology</span>
+<span class="font-label-md text-label-md text-slate-900 font-bold uppercase tracking-wider">Agronomist Micro-Action</span>
+</div>
+<span class="font-label-sm text-label-sm text-slate-500 font-medium">Rule: AR-281</span>
+</div>
+<div class="bg-emerald-50/50 border border-emerald-100 p-3 rounded-lg flex flex-col space-y-2.5">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-emerald-600 text-lg mt-0.5">check_circle</span>
+<span class="font-body-md text-body-md text-slate-800 font-medium">Hold scheduled drip irrigation for Plot 2 &amp; Plot 4 for next 36 hours.</span>
+</div>
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-emerald-600 text-lg mt-0.5">check_circle</span>
+<span class="font-body-md text-body-md text-slate-800 font-medium">Postpone foliar spray application until Saturday morning drying window.</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-label-sm text-slate-500">Last verified by Node telemetry 14m ago</span>
+<button class="font-label-md text-label-md text-primary font-bold uppercase tracking-wider flex items-center gap-1 hover:text-emerald-700 active:opacity-75">
+        Export PDF Log
+        <span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+</section>
+</div>
+<script>
+  // Simple micro-interactions for dismiss / toggle empty states
+  const dismissBtn = document.getElementById('dismissAlertBtn');
+  const heavyAlert = document.getElementById('heavyRainAlert');
+  const safeNotice = document.getElementById('safeStateNotice');
+  const restoreBtn = document.getElementById('restoreAlertBtn');
+  const viewAdvisoryBtn = document.getElementById('viewAdvisoryBtn');
+  const locBtn = document.getElementById('locBtn');
+
+  if (dismissBtn && heavyAlert && safeNotice) {
+    dismissBtn.addEventListener('click', () => {
+      heavyAlert.classList.add('hidden');
+      safeNotice.classList.remove('hidden');
+      safeNotice.classList.add('flex');
+    });
+  }
+
+  if (restoreBtn && heavyAlert && safeNotice) {
+    restoreBtn.addEventListener('click', () => {
+      safeNotice.classList.add('hidden');
+      safeNotice.classList.remove('flex');
+      heavyAlert.classList.remove('hidden');
+    });
+  }
+
+  if (viewAdvisoryBtn) {
+    viewAdvisoryBtn.addEventListener('click', () => {
+      viewAdvisoryBtn.innerHTML = '<span>Advisory Confirmed ✓</span>';
+      viewAdvisoryBtn.classList.remove('bg-primary');
+      viewAdvisoryBtn.classList.add('bg-emerald-100', 'text-emerald-800');
+      setTimeout(() => {
+        viewAdvisoryBtn.innerHTML = '<span>View Action Advisory</span><span class="material-symbols-outlined text-lg">arrow_forward</span>';
+        viewAdvisoryBtn.classList.remove('bg-emerald-100', 'text-emerald-800');
+        viewAdvisoryBtn.classList.add('bg-primary');
+      }, 3000);
+    });
+  }
+
+  if (locBtn) {
+    locBtn.addEventListener('click', () => {
+      const orig = locBtn.innerHTML;
+      locBtn.innerHTML = '<span class="material-symbols-outlined text-primary text-xl animate-spin">refresh</span><span class="font-label-md text-label-md uppercase tracking-wider text-slate-700">Pinging...</span>';
+      setTimeout(() => {
+        locBtn.innerHTML = orig;
+      }, 1500);
+    });
+  }
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.04)]" data-active-classes="text-primary [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-primary [&amp;_.tab-icon]:text-primary"><div class="flex items-center justify-around h-16 px-space-xs max-w-lg mx-auto w-full"><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="home" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">home</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Home</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="live-feed" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">videocam</span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white animate-ping"></span><span class="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 ring-1 ring-white"></span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Live</span></a><a aria-current="page" class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-colors text-primary [&amp;_.tab-pill]:bg-emerald-50 [&amp;_.tab-pill]:text-primary [&amp;_.tab-icon]:text-primary" data-path="weather-microclimate" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">wb_sunny</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5 font-bold">Weather</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="detections" href="#"><div class="tab-pill relative flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">filter_center_focus</span><span class="absolute top-0 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white font-label-sm text-label-sm flex items-center justify-center font-bold">1</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Detections</span></a><a class="group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 text-slate-500 hover:text-slate-800 transition-colors" data-path="farm-profile" href="#"><div class="tab-pill flex items-center justify-center px-3 py-1 rounded-full transition-all"><span class="material-symbols-outlined tab-icon text-2xl">manage_accounts</span></div><span class="font-label-sm text-label-sm uppercase tracking-wide mt-0.5">Profile</span></a></div></nav></body></html>
