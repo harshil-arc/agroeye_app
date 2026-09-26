@@ -5,16 +5,41 @@ import { SensorReadings, AIDetection, WeatherDayForecast, FarmNode, FarmPlot, Fi
 import { initialSensorReadings, mockForecast, mockHardwareNodes, mockPlots } from '@/data/mockFarmData';
 import { getFirebaseInstance } from '@/lib/firebase';
 import { ref, onValue, off, set } from 'firebase/database';
+import { computeIrrigationRecommendation, IrrigationRecommendation } from '@/lib/irrigationEngine';
+
+export interface HistoricalSensorPoint {
+  time: string;
+  timestamp: number;
+  temperature: number;
+  soilMoisture: number;
+  humidity: number;
+  aqi: number;
+}
+
+export interface ThresholdAlert {
+  id: string;
+  type: 'soil_dry' | 'soil_wet' | 'heat_stress' | 'poor_aqi' | 'disease_critical';
+  title: string;
+  message: string;
+  severity: 'Critical' | 'Warning' | 'Info';
+  timestamp: string;
+  value: string;
+}
 
 interface FarmDataContextType {
   sensors: SensorReadings;
+  sensorHistory: HistoricalSensorPoint[];
   detections: AIDetection[];
   forecast: WeatherDayForecast[];
   nodes: FarmNode[];
   plots: FarmPlot[];
+  selectedPlot: string;
+  setSelectedPlot: (plotId: string) => void;
   isOfflineMode: boolean;
   setIsOfflineMode: (offline: boolean) => void;
+  isDataStale: boolean;
   lastUpdated: string;
+  lastUpdatedTimestamp: number;
   firebaseConnected: boolean;
   firebaseConfig: FirebaseConfig;
   saveFirebaseConfig: (config: FirebaseConfig) => void;
@@ -27,17 +52,18 @@ interface FarmDataContextType {
   setIsStreamActive: (active: boolean) => void;
   isNightVision: boolean;
   setIsNightVision: (nv: boolean) => void;
-  selectedPlot: string;
-  setSelectedPlot: (plot: string) => void;
   isLoadingDetections: boolean;
   refreshFirebaseData: () => Promise<void>;
   cameraControl: CameraControlState;
   setCameraMode: (mode: 'auto' | 'manual') => Promise<void>;
   updateCameraCoords: (pan: number, tilt: number, command?: CameraControlState['command']) => Promise<void>;
   sendCameraStep: (deltaPan: number, deltaTilt: number, commandName: CameraControlState['command']) => Promise<void>;
+  thresholdAlerts: ThresholdAlert[];
+  dismissThresholdAlert: (id: string) => void;
+  irrigationRecommendation: IrrigationRecommendation;
 }
 
-const DEFAULT_FIREBASE_URL = 'https://sample-629de-default-rtdb.firebaseio.com';
+const DEFAULT_FIREBASE_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || 'https://sample-629de-default-rtdb.firebaseio.com';
 
 const initialCameraControl: CameraControlState = {
   mode: 'auto',
@@ -54,7 +80,7 @@ const initialCameraControl: CameraControlState = {
 
 const FarmDataContext = createContext<FarmDataContextType | undefined>(undefined);
 
-// Helper to format ISO or SQL timestamps into friendly time ago string
+// Helper to format timestamps
 function formatTimeAgo(dateInput: string | number | undefined): string {
   if (!dateInput) return 'Recently';
   try {
@@ -70,7 +96,7 @@ function formatTimeAgo(dateInput: string | number | undefined): string {
   }
 }
 
-// Vapor Pressure Deficit calculation from Temp and RH
+// Vapor Pressure Deficit calculation
 function calculateVPD(temp: number, rh: number): number {
   if (!temp || !rh) return 1.2;
   const es = 0.61078 * Math.exp((17.27 * temp) / (temp + 237.3));
@@ -78,7 +104,7 @@ function calculateVPD(temp: number, rh: number): number {
   return +(es - ea).toFixed(1);
 }
 
-// Convert Firebase raw alert object into standard AIDetection
+// Transform raw Firebase detection into standard AIDetection
 function transformFirebaseAlert(key: string, raw: any, index: number): AIDetection {
   const isAnimal = !!raw.animal_name || !!raw.species_breakdown;
   const name = raw.disease_name || raw.animal_name || 'Detected Anomaly';
@@ -171,32 +197,59 @@ function transformFirebaseAlert(key: string, raw: any, index: number): AIDetecti
 }
 
 export function FarmDataProvider({ children }: { children: React.ReactNode }) {
-  const [sensors, setSensors] = useState<SensorReadings>(initialSensorReadings);
-  const [detections, setDetections] = useState<AIDetection[]>([]);
+  // Offline-first restoration
+  const [sensors, setSensors] = useState<SensorReadings>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('agroeye_offline_sensors');
+      if (cached) {
+        try { return JSON.parse(cached); } catch {}
+      }
+    }
+    return initialSensorReadings;
+  });
+
+  const [sensorHistory, setSensorHistory] = useState<HistoricalSensorPoint[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('agroeye_offline_sensor_history');
+      if (cached) {
+        try { return JSON.parse(cached); } catch {}
+      }
+    }
+    return [];
+  });
+
+  const [detections, setDetections] = useState<AIDetection[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('agroeye_offline_detections');
+      if (cached) {
+        try { return JSON.parse(cached); } catch {}
+      }
+    }
+    return [];
+  });
+
+  const [plots, setPlots] = useState<FarmPlot[]>(mockPlots);
+  const [selectedPlot, setSelectedPlot] = useState<string>('plot_dabok_01');
   const [forecast] = useState<WeatherDayForecast[]>(mockForecast);
   const [nodes, setNodes] = useState<FarmNode[]>(mockHardwareNodes);
-  const [plots, setPlots] = useState<FarmPlot[]>(mockPlots);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<string>('Live ESP32 Sync');
+  const [lastUpdatedTimestamp, setLastUpdatedTimestamp] = useState<number>(Date.now());
   const [firebaseConnected, setFirebaseConnected] = useState<boolean>(true);
   const [autoOpenedDetection, setAutoOpenedDetection] = useState<AIDetection | null>(null);
   const [latestImageUrl, setLatestImageUrl] = useState<string>('https://iili.io/nuiqbzg.jpg');
   const [isStreamActive, setIsStreamActive] = useState<boolean>(true);
   const [isNightVision, setIsNightVision] = useState<boolean>(false);
-  const [selectedPlot, setSelectedPlot] = useState<string>('All');
   const [isLoadingDetections, setIsLoadingDetections] = useState<boolean>(true);
   const [cameraControl, setCameraControl] = useState<CameraControlState>(initialCameraControl);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Record<string, boolean>>({});
   const previousLatestKeyRef = useRef<string>('');
 
   const [firebaseConfig, setFirebaseConfig] = useState<FirebaseConfig>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('agroeye_firebase_config');
       if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error(e);
-        }
+        try { return JSON.parse(saved); } catch (e) { console.error(e); }
       }
     }
     return {
@@ -217,33 +270,27 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Helper to send camera control state to Firebase Realtime Database
+  // Helper to send camera control state to Firebase
   const sendCameraControlToFirebase = useCallback(async (newState: CameraControlState) => {
     const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
-    
-    // 1. Direct REST PUT to Firebase
     try {
       fetch(`${dbUrl}/camera_control.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newState),
-      }).catch((e) => console.warn('Camera control REST send error:', e));
+      }).catch((e) => console.warn('Camera control REST send notice:', e));
     } catch (err) {
       console.warn('Camera control send error:', err);
     }
 
-    // 2. Also try Firebase SDK if initialized
     const { db } = getFirebaseInstance(firebaseConfig);
     if (db) {
       try {
         set(ref(db, 'camera_control'), newState).catch(() => {});
-      } catch {
-        // Ignored, REST will have succeeded
-      }
+      } catch {}
     }
   }, [firebaseConfig]);
 
-  // Public method to switch between Auto & Manual modes
   const setCameraMode = useCallback(async (mode: 'auto' | 'manual') => {
     const updatedState: CameraControlState = {
       ...cameraControl,
@@ -256,16 +303,15 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     await sendCameraControlToFirebase(updatedState);
   }, [cameraControl, sendCameraControlToFirebase]);
 
-  // Public method to set specific Pan & Tilt angles/coordinates
   const updateCameraCoords = useCallback(async (pan: number, tilt: number, command?: CameraControlState['command']) => {
     const clampedPan = Math.max(0, Math.min(180, Math.round(pan)));
     const clampedTilt = Math.max(0, Math.min(180, Math.round(tilt)));
-    const x = clampedPan - 90; // -90 to +90
-    const y = clampedTilt - 90; // -90 to +90
+    const x = clampedPan - 90;
+    const y = clampedTilt - 90;
 
     const updatedState: CameraControlState = {
       ...cameraControl,
-      mode: 'manual', // Any coordinate change implies manual control
+      mode: 'manual',
       pan_angle: clampedPan,
       tilt_angle: clampedTilt,
       x_coord: x,
@@ -278,7 +324,6 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     await sendCameraControlToFirebase(updatedState);
   }, [cameraControl, sendCameraControlToFirebase]);
 
-  // Public method to increment/decrement Pan or Tilt by step (for joystick / D-pad)
   const sendCameraStep = useCallback(async (deltaPan: number, deltaTilt: number, commandName: CameraControlState['command']) => {
     const newPan = Math.max(0, Math.min(180, cameraControl.pan_angle + deltaPan));
     const newTilt = Math.max(0, Math.min(180, cameraControl.tilt_angle + deltaTilt));
@@ -300,7 +345,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     await sendCameraControlToFirebase(updatedState);
   }, [cameraControl, sendCameraControlToFirebase]);
 
-  // Direct REST fetcher that reads all real data directly from Firebase
+  // Direct REST fetcher syncing all real data directly from Firebase
   const refreshFirebaseData = useCallback(async () => {
     const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
     try {
@@ -320,6 +365,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           .reverse();
 
         setDetections(parsedList);
+        localStorage.setItem('agroeye_offline_detections', JSON.stringify(parsedList));
 
         if (parsedList.length > 0) {
           const newest = parsedList[0];
@@ -338,6 +384,29 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         if (sensorEntries.length > 0) {
           const latestReading = sensorEntries[sensorEntries.length - 1];
 
+          // Build Historical Sensor Points for 24h/7d charts
+          const historyPoints: HistoricalSensorPoint[] = sensorEntries
+            .slice(-48)
+            .map((entry: any, i: number) => {
+              const t = entry.temperature ?? 32;
+              const sm = entry.soil_moisture ?? 79;
+              const rh = entry.humidity ?? 38;
+              const mq = entry.mq135_raw ?? 330;
+              const aqi = Math.round(Math.min(300, Math.max(15, (mq / 1024) * 120)));
+              const timeStr = entry.datetime ? entry.datetime.split(' ')[1] || `T-${i}` : `Point ${i + 1}`;
+              return {
+                time: timeStr,
+                timestamp: entry.timestamp || Date.now() - (sensorEntries.length - i) * 600000,
+                temperature: +t.toFixed(1),
+                soilMoisture: Math.round(sm),
+                humidity: +rh.toFixed(1),
+                aqi,
+              };
+            });
+
+          setSensorHistory(historyPoints);
+          localStorage.setItem('agroeye_offline_sensor_history', JSON.stringify(historyPoints));
+
           const validTemps = sensorEntries
             .map((r: any) => typeof r.temperature === 'number' ? r.temperature : parseFloat(r.temperature))
             .filter((t: number) => !isNaN(t) && t > 0 && t < 70);
@@ -352,10 +421,9 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           const voltMq = latestReading.mq135_voltage ?? 1.61;
           const soilRaw = latestReading.soil_raw ?? 449;
           const vpdVal = calculateVPD(temp, humid);
-
           const aqiEst = Math.round(Math.min(300, Math.max(15, (rawMq / 1024) * 120)));
 
-          setSensors({
+          const updatedSensors: SensorReadings = {
             temperature: +temp.toFixed(1),
             tempMin,
             tempMax,
@@ -380,9 +448,14 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             barometricPressure: 1012,
             et0: 4.2,
             timestamp: latestReading.datetime || latestReading.timestamp || new Date().toISOString(),
-          });
+          };
 
-          setLastUpdated(`ESP32 Live • ${latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now'}`);
+          setSensors(updatedSensors);
+          localStorage.setItem('agroeye_offline_sensors', JSON.stringify(updatedSensors));
+
+          const syncTime = latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now';
+          setLastUpdated(`ESP32 Live • ${syncTime}`);
+          setLastUpdatedTimestamp(Date.now());
         }
       }
 
@@ -413,7 +486,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }));
       }
     } catch (err) {
-      console.warn('Direct Firebase REST sync warning:', err);
+      console.warn('Firebase sync notice (offline mode available):', err);
     } finally {
       setIsLoadingDetections(false);
     }
@@ -490,7 +563,9 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
               timestamp: latestReading.datetime || new Date().toISOString(),
             }));
 
-            setLastUpdated(`ESP32 Live • ${latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now'}`);
+            const syncTime = latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now';
+            setLastUpdated(`ESP32 Live • ${syncTime}`);
+            setLastUpdatedTimestamp(Date.now());
           }
         }
       });
@@ -579,17 +654,72 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // Compute Active Threshold Alerts
+  const thresholdAlerts: ThresholdAlert[] = [];
+  if (sensors.soilMoisture < 45 && !dismissedAlerts['soil_dry']) {
+    thresholdAlerts.push({
+      id: 'soil_dry',
+      type: 'soil_dry',
+      title: 'Critical Soil Moisture Deficit',
+      message: `Soil moisture (${sensors.soilMoisture}%) is below minimum threshold (45%). Root wilting risk active.`,
+      severity: 'Critical',
+      timestamp: 'Active Now',
+      value: `${sensors.soilMoisture}%`,
+    });
+  }
+  if (sensors.temperature > 37 && !dismissedAlerts['heat_stress']) {
+    thresholdAlerts.push({
+      id: 'heat_stress',
+      type: 'heat_stress',
+      title: 'Canopy Heat Stress Alert',
+      message: `Canopy temperature (${sensors.temperature}°C) exceeds safe foliar threshold (37°C).`,
+      severity: 'Critical',
+      timestamp: 'Active Now',
+      value: `${sensors.temperature}°C`,
+    });
+  }
+  if (sensors.airQualityAqi > 140 && !dismissedAlerts['poor_aqi']) {
+    thresholdAlerts.push({
+      id: 'poor_aqi',
+      type: 'poor_aqi',
+      title: 'Elevated Air Pollution / Smoke',
+      message: `MQ-135 sensor detected elevated air contaminants (AQI ${sensors.airQualityAqi}).`,
+      severity: 'Warning',
+      timestamp: 'Active Now',
+      value: `AQI ${sensors.airQualityAqi}`,
+    });
+  }
+
+  const dismissThresholdAlert = (id: string) => {
+    setDismissedAlerts((prev) => ({ ...prev, [id]: true }));
+  };
+
+  // Compute Smart Irrigation Recommendation
+  const irrigationRecommendation = computeIrrigationRecommendation(
+    sensors.soilMoisture,
+    sensors.vpd,
+    forecast[0]?.rainChance || 10,
+    sensors.et0 || 4.2
+  );
+
+  const isDataStale = Date.now() - lastUpdatedTimestamp > 15 * 60 * 1000;
+
   return (
     <FarmDataContext.Provider
       value={{
         sensors,
+        sensorHistory,
         detections,
         forecast,
         nodes,
         plots,
+        selectedPlot,
+        setSelectedPlot,
         isOfflineMode,
         setIsOfflineMode,
+        isDataStale,
         lastUpdated,
+        lastUpdatedTimestamp,
         firebaseConnected,
         firebaseConfig,
         saveFirebaseConfig,
@@ -602,14 +732,15 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         setIsStreamActive,
         isNightVision,
         setIsNightVision,
-        selectedPlot,
-        setSelectedPlot,
         isLoadingDetections,
         refreshFirebaseData,
         cameraControl,
         setCameraMode,
         updateCameraCoords,
         sendCameraStep,
+        thresholdAlerts,
+        dismissThresholdAlert,
+        irrigationRecommendation,
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getDatabase, Database, ref, onValue, off } from 'firebase/database';
-import { getFirestore, Firestore, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth, onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut, User } from 'firebase/auth';
 import { FirebaseConfig } from '@/types';
 
 // Default / fallback Firebase config from environment variables
@@ -17,6 +18,7 @@ export const defaultFirebaseConfig: FirebaseConfig = {
 let app: FirebaseApp | null = null;
 let db: Database | null = null;
 let firestore: Firestore | null = null;
+let auth: Auth | null = null;
 
 export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
   try {
@@ -26,7 +28,7 @@ export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
     };
 
     if (!activeConfig.projectId && !activeConfig.databaseURL && !activeConfig.apiKey) {
-      return { app: null, db: null, firestore: null, isConfigured: false };
+      return { app: null, db: null, firestore: null, auth: null, isConfigured: false };
     }
 
     if (!getApps().length) {
@@ -46,11 +48,19 @@ export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
       } catch (err) {
         console.warn('Firebase Firestore not initialized:', err);
       }
+      try {
+        auth = getAuth(app);
+      } catch (err) {
+        console.warn('Firebase Auth not initialized:', err);
+      }
     }
 
-    return { app, db, firestore, isConfigured: true };
+    return { app, db, firestore, auth, isConfigured: true };
   } catch (error) {
     console.error('Failed to initialize Firebase:', error);
-    return { app: null, db: null, firestore: null, isConfigured: false };
+    return { app: null, db: null, firestore: null, auth: null, isConfigured: false };
   }
 }
+
+export { onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut };
+export type { User };

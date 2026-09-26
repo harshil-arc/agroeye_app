@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useFarmData } from '@/context/FarmDataContext';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   Wifi,
   CloudOff,
@@ -22,23 +23,89 @@ import {
   RotateCcw,
   Activity,
   Cpu,
-  ImageIcon
+  ImageIcon,
+  Clock,
+  Waves,
+  TrendingUp,
+  BarChart3,
+  Calendar,
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 
 export default function HomePage() {
   const {
     sensors,
+    sensorHistory,
     detections,
     isOfflineMode,
     setIsOfflineMode,
+    isDataStale,
     lastUpdated,
+    lastUpdatedTimestamp,
     firebaseConnected,
-    triggerManualAlert,
     latestImageUrl,
-    setAutoOpenedDetection
+    setAutoOpenedDetection,
+    plots,
+    selectedPlot,
+    setSelectedPlot,
+    thresholdAlerts,
+    dismissThresholdAlert,
+    irrigationRecommendation
   } = useFarmData();
 
+  const { t, lang } = useLanguage();
+  const [historyRange, setHistoryRange] = useState<'24h' | '7d'>('24h');
+  const [activeHistoryMetric, setActiveHistoryMetric] = useState<'soil' | 'temp' | 'humidity'>('soil');
+
   const recentDetection = detections.length > 0 ? detections[0] : null;
+  const activePlot = plots.find((p) => p.id === selectedPlot) || plots[0];
+
+  // Helper for generating smooth SVG sparkline path from history points
+  const generateSvgPath = (points: number[], width = 300, height = 70) => {
+    if (!points || points.length === 0) return { path: '', area: '' };
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    const step = width / Math.max(1, points.length - 1);
+
+    const coords = points.map((val, idx) => {
+      const x = idx * step;
+      const y = height - ((val - min) / range) * (height - 16) - 8;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+
+    const pathStr = `M ${coords.join(' L ')}`;
+    const areaStr = `${pathStr} L ${width},${height} L 0,${height} Z`;
+    return { path: pathStr, area: areaStr };
+  };
+
+  // Extract history series
+  const displayedHistory = sensorHistory.length > 0 ? sensorHistory : [
+    { time: '00:00', soilMoisture: 72, temperature: 24, humidity: 45 },
+    { time: '04:00', soilMoisture: 74, temperature: 22, humidity: 50 },
+    { time: '08:00', soilMoisture: 78, temperature: 28, humidity: 42 },
+    { time: '12:00', soilMoisture: 80, temperature: 34, humidity: 36 },
+    { time: '16:00', soilMoisture: 79, temperature: 33, humidity: 38 },
+    { time: '20:00', soilMoisture: 79, temperature: 29, humidity: 41 },
+  ];
+
+  const soilSeries = displayedHistory.map((h) => h.soilMoisture);
+  const tempSeries = displayedHistory.map((h) => h.temperature);
+  const humiditySeries = displayedHistory.map((h) => h.humidity);
+
+  const activeSeries =
+    activeHistoryMetric === 'soil' ? soilSeries : activeHistoryMetric === 'temp' ? tempSeries : humiditySeries;
+
+  const currentMetricUnit = activeHistoryMetric === 'soil' ? '%' : activeHistoryMetric === 'temp' ? '°C' : '% RH';
+  const currentMetricColor =
+    activeHistoryMetric === 'soil' ? 'text-emerald-600' : activeHistoryMetric === 'temp' ? 'text-amber-600' : 'text-sky-600';
+  const currentMetricStroke =
+    activeHistoryMetric === 'soil' ? '#059669' : activeHistoryMetric === 'temp' ? '#d97706' : '#0284c7';
+  const currentMetricFill =
+    activeHistoryMetric === 'soil' ? '#10b981' : activeHistoryMetric === 'temp' ? '#f59e0b' : '#38bdf8';
+
+  const { path: trendPath, area: trendArea } = generateSvgPath(activeSeries, 320, 80);
 
   return (
     <div className="flex flex-col w-full pb-8">
@@ -83,8 +150,47 @@ export default function HomePage() {
             <CloudOff className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <p className="text-xs text-slate-800 flex-1">
               Showing latest cached farm telemetry{' '}
-              <span className="text-slate-500 font-medium">(Edge node buffer #04 synced 4m ago)</span>
+              <span className="text-slate-500 font-medium">(Edge node buffer synced to local storage)</span>
             </p>
+          </div>
+        )}
+
+        {/* Stale Data Warning Banner if last sync > 15 min */}
+        {isDataStale && !isOfflineMode && (
+          <div className="mt-2 p-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 flex items-center gap-2 shadow-sm animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <p className="text-xs flex-1">
+              <strong>Stale Telemetry Notice:</strong> Last sensor sync was over 15 minutes ago. Check ESP32 solar gateway connectivity.
+            </p>
+          </div>
+        )}
+
+        {/* Unacknowledged Threshold Alerts Preview */}
+        {thresholdAlerts.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {thresholdAlerts.map((alt) => (
+              <div
+                key={alt.id}
+                className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 shadow-xs ${
+                  alt.severity === 'Critical'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900'
+                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span className="text-xs font-headline font-bold truncate">{alt.title}:</span>
+                  <span className="text-xs truncate text-slate-700">{alt.message}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissThresholdAlert(alt.id)}
+                  className="text-[10px] font-headline font-bold text-slate-400 hover:text-slate-800 uppercase px-2 py-0.5 rounded bg-white/70"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -94,14 +200,14 @@ export default function HomePage() {
         <div className="flex items-start justify-between">
           <div>
             <span className="font-headline text-[11px] uppercase tracking-widest text-emerald-700 font-bold">
-              Agronomic Node • Dabok Sector 1
+              Agronomic Node • {activePlot.name}
             </span>
             <h1 className="font-headline text-2xl sm:text-3xl text-slate-900 font-bold tracking-tight mt-0.5">
-              Good Morning, Farmer
+              {lang === 'hi' ? 'नमस्ते, किसान मित्र' : 'Good Morning, Farmer'}
             </h1>
             <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5 font-medium">
               <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-              my Farm • Dabok, Udaipur (Rice Crop)
+              {activePlot.name} • {activePlot.crop} ({activePlot.area})
             </p>
           </div>
 
@@ -122,33 +228,63 @@ export default function HomePage() {
                 {isOfflineMode ? 'Cached Buffer' : 'ESP32 Online'}
               </span>
             </div>
-            <span className="font-headline text-[10px] text-slate-500 font-semibold">{lastUpdated}</span>
+            <div className="flex items-center gap-1 text-slate-500 font-headline text-[10px] font-semibold">
+              <Clock className="w-3 h-3" />
+              <span>{lastUpdated}</span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Farm Environment Status Strip */}
-      <section className="px-4 pb-3.5">
-        <div className="w-full rounded-xl bg-white border border-slate-200/80 p-3 flex items-center justify-between gap-2 overflow-x-auto shadow-sm">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-headline text-xs uppercase tracking-wider text-slate-500 font-bold">
-              Environment
+      {/* 3. Smart Irrigation Recommendation Engine Banner */}
+      <section className="px-4 pb-3">
+        <div className="w-full rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-4 shadow-md border border-emerald-800/40 relative overflow-hidden">
+          <div className="absolute -right-10 -bottom-10 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <Droplets className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-headline text-[10px] uppercase font-bold tracking-widest text-emerald-300 block">
+                  Agronomic Intelligence
+                </span>
+                <h3 className="font-headline text-sm font-bold text-white">
+                  {irrigationRecommendation.title}
+                </h3>
+              </div>
+            </div>
+
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 font-headline text-[11px] font-bold text-emerald-300 uppercase">
+              {irrigationRecommendation.badge}
             </span>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="inline-flex items-center gap-1.5 text-slate-800 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              <span>Soil Moist: {sensors.soilMoisture}%</span>
+
+          <p className="text-xs text-slate-200 leading-relaxed mt-2">
+            {irrigationRecommendation.reason}
+          </p>
+
+          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10 text-center">
+            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+              <span className="text-[10px] text-slate-300 block font-medium uppercase">Water Deficit</span>
+              <span className="font-headline text-sm font-bold text-emerald-300 mt-0.5 block">
+                {irrigationRecommendation.recommendedVolumeLitersPerAcre.toLocaleString()} L/acre
+              </span>
             </div>
-            <span className="text-slate-300 text-xs">•</span>
-            <div className="inline-flex items-center gap-1.5 text-slate-800 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              <span>Temp: {sensors.temperature}°C</span>
+
+            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+              <span className="text-[10px] text-slate-300 block font-medium uppercase">VPD Stress</span>
+              <span className="font-headline text-sm font-bold text-sky-300 mt-0.5 block">
+                {irrigationRecommendation.currentMetrics.vpdKpa} kPa
+              </span>
             </div>
-            <span className="text-slate-300 text-xs">•</span>
-            <div className="inline-flex items-center gap-1.5 text-slate-800 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-sky-500" />
-              <span>Air: {sensors.humidity}% RH</span>
+
+            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
+              <span className="text-[10px] text-slate-300 block font-medium uppercase">Best Window</span>
+              <span className="font-headline text-[11px] font-bold text-amber-300 mt-0.5 block truncate">
+                {irrigationRecommendation.bestWindow}
+              </span>
             </div>
           </div>
         </div>
@@ -160,7 +296,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1.5">
             <Radio className="w-4 h-4 text-emerald-600" />
             <h2 className="font-headline text-xs uppercase tracking-wider text-slate-900 font-bold">
-              Real Farm Telemetry (ESP32)
+              {t('realTelemetry')}
             </h2>
           </div>
           <span className="font-headline text-[11px] text-slate-500 font-medium font-mono">
@@ -175,7 +311,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5">
                 <Droplets className="w-4 h-4 text-emerald-600" />
                 <span className="font-headline text-xs uppercase tracking-wider text-slate-600 font-bold">
-                  Soil Moisture
+                  {t('soilMoisture')}
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-headline text-[10px] uppercase font-bold">
@@ -200,7 +336,7 @@ export default function HomePage() {
               </div>
               <div className="flex justify-between items-center mt-1.5 text-slate-500 font-headline text-[11px]">
                 <span>ADC Raw: {sensors.soilRaw || 449}</span>
-                <span className="font-semibold text-slate-700">Dabok Sector 1</span>
+                <span className="font-semibold text-slate-700">{activePlot.name.split('•')[0]}</span>
               </div>
             </div>
           </div>
@@ -211,7 +347,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5">
                 <Thermometer className="w-4 h-4 text-amber-600" />
                 <span className="font-headline text-xs uppercase tracking-wider text-slate-600 font-bold">
-                  Temperature
+                  {t('canopyTemp')}
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-headline text-[10px] uppercase font-bold">
@@ -245,7 +381,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5">
                 <Wind className="w-4 h-4 text-sky-600" />
                 <span className="font-headline text-xs uppercase tracking-wider text-slate-600 font-bold">
-                  Air Humidity
+                  {t('airHumidity')}
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-headline text-[10px] uppercase font-bold">
@@ -281,7 +417,7 @@ export default function HomePage() {
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span className="font-headline text-xs uppercase tracking-wider text-slate-600 font-bold">
-                  Air Quality
+                  {t('airQuality')}
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-headline text-[10px] uppercase font-bold">
@@ -306,7 +442,118 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Real Latest AI Edge Detection Card from Firebase */}
+      {/* 5. Historical Trend Analysis Graphs (24h / 7d) */}
+      <section className="px-4 pb-4">
+        <div className="w-full rounded-2xl bg-white border border-slate-200/90 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-600" />
+              <div>
+                <h3 className="font-headline text-sm font-bold text-slate-900">
+                  Historical Sensor Dynamics
+                </h3>
+                <span className="text-[11px] text-slate-500">
+                  ESP32 24-Hour / 7-Day Trend Analysis
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setHistoryRange('24h')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-headline font-bold transition-all ${
+                  historyRange === '24h'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                24H
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryRange('7d')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-headline font-bold transition-all ${
+                  historyRange === '7d'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                7D
+              </button>
+            </div>
+          </div>
+
+          {/* Metric Selector Tabs */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setActiveHistoryMetric('soil')}
+              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold transition-all ${
+                activeHistoryMetric === 'soil'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Soil Moisture ({sensors.soilMoisture}%)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveHistoryMetric('temp')}
+              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold transition-all ${
+                activeHistoryMetric === 'temp'
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Canopy Temp ({sensors.temperature}°C)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveHistoryMetric('humidity')}
+              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold transition-all ${
+                activeHistoryMetric === 'humidity'
+                  ? 'bg-sky-50 text-sky-800 border border-sky-200'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Air Humidity ({sensors.humidity}%)
+            </button>
+          </div>
+
+          {/* SVG Trend Graph */}
+          <div className="relative w-full h-24 bg-slate-50 rounded-xl p-2 border border-slate-100 overflow-hidden">
+            <svg className="w-full h-full" viewBox="0 0 320 80" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="metricGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={currentMetricFill} stopOpacity="0.3" />
+                  <stop offset="100%" stopColor={currentMetricFill} stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path d={trendArea} fill="url(#metricGradient)" />
+              <path
+                d={trendPath}
+                fill="none"
+                stroke={currentMetricStroke}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+
+            <div className="absolute top-2 left-3 font-headline text-[11px] font-bold text-slate-700">
+              Peak: {Math.max(...activeSeries)}{currentMetricUnit}
+            </div>
+            <div className="absolute bottom-2 right-3 font-headline text-[11px] font-bold text-slate-500">
+              Low: {Math.min(...activeSeries)}{currentMetricUnit}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Real Latest AI Edge Detection Card from Firebase */}
       {recentDetection && (
         <section className="px-4 pb-4">
           <div className="flex items-center justify-between mb-2">
@@ -381,7 +628,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 6. Real Farm Optical Feed Preview */}
+      {/* 7. Real Farm Optical Feed Preview */}
       <section className="px-4 pb-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
@@ -416,7 +663,7 @@ export default function HomePage() {
                     REC
                   </span>
                   <span className="text-slate-200 font-headline text-[10px] hidden sm:inline">
-                    CAM #01 - DABOK RICE FIELD
+                    CAM #01 - {activePlot.name.toUpperCase()}
                   </span>
                 </div>
                 <div className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-slate-200 font-headline text-[10px]">

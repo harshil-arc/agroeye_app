@@ -1,0 +1,37 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    "sensor_readings": {
+      ".indexOn": ["timestamp", "datetime"],
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "disease_alerts": {
+      ".indexOn": ["timestamp", "confidence", "disease_name", "animal_name"],
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "live_status": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "camera_control": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.role === 'operator' || auth.token.role === 'admin' || auth.uid != null)"
+    },
+    "fields": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "alerts_config": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "user_profiles": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

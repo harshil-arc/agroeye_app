@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useFarmData } from '@/context/FarmDataContext';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   Sparkles,
   Cpu,
@@ -17,14 +18,18 @@ import {
   ExternalLink,
   PlusCircle,
   RefreshCw,
-  ImageIcon
+  ImageIcon,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 
 export default function DetectionsPage() {
   const { detections, triggerManualAlert, refreshFirebaseData, isLoadingDetections, setAutoOpenedDetection } = useFarmData();
+  const { t, lang } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [plotFilter, setPlotFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unhandled' | 'treated'>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const handleRefresh = async () => {
@@ -39,11 +44,11 @@ export default function DetectionsPage() {
   const weedCount = detections.filter((d) => d.category === 'weed').length;
 
   const categories = [
-    { id: 'all', label: 'All Real Ingests', count: detections.length },
-    { id: 'disease', label: 'Diseases', count: diseaseCount },
-    { id: 'pest', label: 'Animal / Pest', count: pestCount },
-    { id: 'water_stress', label: 'Water Stress', count: waterCount },
-    { id: 'weed', label: 'Weeds', count: weedCount },
+    { id: 'all', label: lang === 'hi' ? 'सभी घटनाएं' : 'All Detections', count: detections.length },
+    { id: 'disease', label: lang === 'hi' ? 'रोग' : 'Diseases', count: diseaseCount },
+    { id: 'pest', label: lang === 'hi' ? 'कीट व वन्यजीव' : 'Animal / Pest', count: pestCount },
+    { id: 'water_stress', label: lang === 'hi' ? 'जल तनाव' : 'Water Stress', count: waterCount },
+    { id: 'weed', label: lang === 'hi' ? 'खरपतवार' : 'Weeds', count: weedCount },
   ];
 
   const filteredDetections = detections.filter((item) => {
@@ -55,7 +60,12 @@ export default function DetectionsPage() {
       item.plot.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.pathogen && item.pathogen.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesPlot = plotFilter === 'all' || item.plot.toLowerCase().includes(plotFilter.toLowerCase());
-    return matchesCategory && matchesSearch && matchesPlot;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'treated' && item.isTreated) ||
+      (statusFilter === 'unhandled' && !item.isTreated);
+
+    return matchesCategory && matchesSearch && matchesPlot && matchesStatus;
   });
 
   return (
@@ -66,19 +76,19 @@ export default function DetectionsPage() {
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
             <span className="font-headline text-[10px] uppercase tracking-wider text-emerald-700 font-bold">
-              Live Firebase Ingest Stream
+              Real-Time Edge Detection Stream
             </span>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-headline text-[11px] shadow-xs">
             <Cpu className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{detections.length} Real Ingests Synced</span>
+            <span>{detections.length} Events Synced</span>
           </div>
         </div>
         <h1 className="font-headline text-2xl text-slate-900 font-bold tracking-tight mt-1">
-          Real AI Detections &amp; Captures
+          {t('aiDetections')}
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Live edge neural network classifications and real camera images from Firebase (iili.io)
+          Live edge neural network classifications and real camera images from field gateway
         </p>
       </section>
 
@@ -115,7 +125,7 @@ export default function DetectionsPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by real disease, animal, or keyword..."
+              placeholder={lang === 'hi' ? 'रोग, कीट या फसल से खोजें...' : 'Search by pathogen, pest, or field keyword...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-10 pl-9 pr-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-xs"
@@ -126,7 +136,7 @@ export default function DetectionsPage() {
             type="button"
             onClick={handleRefresh}
             className="h-10 px-3 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-headline text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all shadow-xs flex-shrink-0"
-            title="Refresh Firebase Realtime Database"
+            title="Sync with Field Gateway"
           >
             <RefreshCw className={`w-4 h-4 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Sync</span>
@@ -137,24 +147,40 @@ export default function DetectionsPage() {
       {/* 4. Real Detections Feed List */}
       <section className="px-4 pt-2 space-y-3">
         {isLoadingDetections && detections.length === 0 ? (
-          <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center flex flex-col items-center">
-            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-2" />
-            <h3 className="font-headline text-sm font-bold text-slate-900">
-              Fetching Real Images from Firebase...
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Connecting to sample-629de-default-rtdb.firebaseio.com
-            </p>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs animate-pulse flex flex-col sm:flex-row gap-4">
+                <div className="w-full sm:w-44 h-40 bg-slate-200 rounded-xl" />
+                <div className="flex-1 space-y-2.5 py-1">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-6 bg-slate-200 rounded w-3/4" />
+                  <div className="h-3 bg-slate-200 rounded w-full" />
+                  <div className="h-3 bg-slate-200 rounded w-2/3" />
+                  <div className="h-8 bg-slate-100 rounded mt-4 w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredDetections.length === 0 ? (
-          <div className="p-8 bg-white rounded-2xl border border-slate-200 text-center flex flex-col items-center">
-            <ShieldCheck className="w-10 h-10 text-emerald-500 mb-2" />
+          <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center flex flex-col items-center justify-center">
+            <ShieldCheck className="w-12 h-12 text-emerald-500 mb-2" />
             <h3 className="font-headline text-base font-bold text-slate-900">
-              No detections match your query
+              No matching detections found
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs">
-              Try changing your search term or category filter.
+            <p className="text-xs text-slate-500 mt-1 max-w-xs mb-4">
+              All crop canopies are currently clear or no records match your search filter.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider transition-all"
+            >
+              Reset Filters
+            </button>
           </div>
         ) : (
           filteredDetections.map((item) => (
@@ -162,7 +188,7 @@ export default function DetectionsPage() {
               key={item.id}
               className="rounded-2xl bg-white border border-slate-200/90 p-4 shadow-xs hover:shadow-md transition-shadow flex flex-col sm:flex-row gap-4 relative overflow-hidden group"
             >
-              {/* Real Photo Thumbnail from iili.io / Firebase */}
+              {/* Real Photo Thumbnail */}
               <div
                 onClick={() => setAutoOpenedDetection(item)}
                 className="relative w-full sm:w-44 h-48 sm:h-auto rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200 cursor-pointer group-hover:ring-2 ring-emerald-500/50 transition-all"
@@ -173,7 +199,6 @@ export default function DetectionsPage() {
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
-                    // Fallback to real crop photo if an image URL fails to load
                     (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
                   }}
                 />
@@ -212,6 +237,11 @@ export default function DetectionsPage() {
                       <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-headline text-[10px] font-semibold">
                         {item.categoryLabel}
                       </span>
+                      {item.isTreated && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-headline text-[10px] font-bold">
+                          ✓ Treated
+                        </span>
+                      )}
                     </div>
 
                     <span className="text-[11px] text-slate-500 font-medium">{item.timeAgo}</span>
