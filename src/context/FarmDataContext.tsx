@@ -271,6 +271,8 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const lastUserCameraActionRef = useRef<number>(0);
+
   // Helper to send camera control state to Firebase
   const sendCameraControlToFirebase = useCallback(async (newState: CameraControlState) => {
     const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
@@ -293,58 +295,67 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseConfig]);
 
   const setCameraMode = useCallback(async (mode: 'auto' | 'manual') => {
-    const updatedState: CameraControlState = {
-      ...cameraControl,
-      mode,
-      command: 'mode_change',
-      last_updated: new Date().toISOString(),
-      timestamp: Date.now(),
-    };
-    setCameraControl(updatedState);
-    await sendCameraControlToFirebase(updatedState);
-  }, [cameraControl, sendCameraControlToFirebase]);
+    lastUserCameraActionRef.current = Date.now();
+    setCameraControl((prev) => {
+      const updatedState: CameraControlState = {
+        ...prev,
+        mode,
+        command: 'mode_change',
+        last_updated: new Date().toISOString(),
+        timestamp: Date.now(),
+      };
+      sendCameraControlToFirebase(updatedState);
+      return updatedState;
+    });
+  }, [sendCameraControlToFirebase]);
 
   const updateCameraCoords = useCallback(async (pan: number, tilt: number, command?: CameraControlState['command']) => {
+    lastUserCameraActionRef.current = Date.now();
     const clampedPan = Math.max(0, Math.min(180, Math.round(pan)));
     const clampedTilt = Math.max(0, Math.min(180, Math.round(tilt)));
     const x = clampedPan - 90;
     const y = clampedTilt - 90;
 
-    const updatedState: CameraControlState = {
-      ...cameraControl,
-      mode: 'manual',
-      pan_angle: clampedPan,
-      tilt_angle: clampedTilt,
-      x_coord: x,
-      y_coord: y,
-      command: command || 'set_coords',
-      last_updated: new Date().toISOString(),
-      timestamp: Date.now(),
-    };
-    setCameraControl(updatedState);
-    await sendCameraControlToFirebase(updatedState);
-  }, [cameraControl, sendCameraControlToFirebase]);
+    setCameraControl((prev) => {
+      const updatedState: CameraControlState = {
+        ...prev,
+        mode: 'manual',
+        pan_angle: clampedPan,
+        tilt_angle: clampedTilt,
+        x_coord: x,
+        y_coord: y,
+        command: command || 'set_coords',
+        last_updated: new Date().toISOString(),
+        timestamp: Date.now(),
+      };
+      sendCameraControlToFirebase(updatedState);
+      return updatedState;
+    });
+  }, [sendCameraControlToFirebase]);
 
   const sendCameraStep = useCallback(async (deltaPan: number, deltaTilt: number, commandName: CameraControlState['command']) => {
-    const newPan = Math.max(0, Math.min(180, cameraControl.pan_angle + deltaPan));
-    const newTilt = Math.max(0, Math.min(180, cameraControl.tilt_angle + deltaTilt));
-    const x = newPan - 90;
-    const y = newTilt - 90;
+    lastUserCameraActionRef.current = Date.now();
+    setCameraControl((prev) => {
+      const newPan = Math.max(0, Math.min(180, prev.pan_angle + deltaPan));
+      const newTilt = Math.max(0, Math.min(180, prev.tilt_angle + deltaTilt));
+      const x = newPan - 90;
+      const y = newTilt - 90;
 
-    const updatedState: CameraControlState = {
-      ...cameraControl,
-      mode: 'manual',
-      pan_angle: newPan,
-      tilt_angle: newTilt,
-      x_coord: x,
-      y_coord: y,
-      command: commandName,
-      last_updated: new Date().toISOString(),
-      timestamp: Date.now(),
-    };
-    setCameraControl(updatedState);
-    await sendCameraControlToFirebase(updatedState);
-  }, [cameraControl, sendCameraControlToFirebase]);
+      const updatedState: CameraControlState = {
+        ...prev,
+        mode: 'manual',
+        pan_angle: newPan,
+        tilt_angle: newTilt,
+        x_coord: x,
+        y_coord: y,
+        command: commandName,
+        last_updated: new Date().toISOString(),
+        timestamp: Date.now(),
+      };
+      sendCameraControlToFirebase(updatedState);
+      return updatedState;
+    });
+  }, [sendCameraControlToFirebase]);
 
   // Direct REST fetcher syncing all real data directly from Firebase
   const refreshFirebaseData = useCallback(async () => {
@@ -493,10 +504,12 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       // 4. Process camera_control if present
       if (data.camera_control && typeof data.camera_control === 'object') {
-        setCameraControl((prev) => ({
-          ...prev,
-          ...data.camera_control,
-        }));
+        if (Date.now() - lastUserCameraActionRef.current > 3000) {
+          setCameraControl((prev) => ({
+            ...prev,
+            ...data.camera_control,
+          }));
+        }
       }
     } catch (err) {
       console.warn('Firebase sync notice (offline mode available):', err);
@@ -612,10 +625,12 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
       const unsubCamera = onValue(cameraControlRef, (snapshot) => {
         const data = snapshot.val();
         if (data && typeof data === 'object') {
-          setCameraControl((prev) => ({
-            ...prev,
-            ...data,
-          }));
+          if (Date.now() - lastUserCameraActionRef.current > 3000) {
+            setCameraControl((prev) => ({
+              ...prev,
+              ...data,
+            }));
+          }
         }
       });
 

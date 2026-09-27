@@ -17,7 +17,6 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
-  Crosshair,
   Bot,
   Gamepad2,
   Lock,
@@ -70,6 +69,12 @@ export default function LiveCameraPage() {
     iceState: 'idle',
     isRelayed: false,
   });
+
+  // Keep a ref of cameraControl to prevent stale closure in unmount cleanup without triggering re-runs
+  const cameraControlRef = useRef(cameraControl);
+  useEffect(() => {
+    cameraControlRef.current = cameraControl;
+  }, [cameraControl]);
 
   // Live timestamp clock update
   useEffect(() => {
@@ -157,10 +162,10 @@ export default function LiveCameraPage() {
     }
   }, [isFullscreen, streamMedia]);
 
-  // Automatic reset to Auto Mode on unmount / tab switch / page exit
+  // Automatic reset to Auto Mode ONLY on actual page unmount / tab switch / page exit
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && cameraControl.mode === 'manual') {
+      if (document.visibilityState === 'hidden' && cameraControlRef.current.mode === 'manual') {
         setCameraMode('auto').catch(() => {});
       }
     };
@@ -172,7 +177,9 @@ export default function LiveCameraPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handleVisibilityChange);
 
-      setCameraMode('auto').catch(() => {});
+      if (cameraControlRef.current.mode === 'manual') {
+        setCameraMode('auto').catch(() => {});
+      }
 
       const dbUrl = (firebaseConfig.databaseURL || 'https://sample-629de-default-rtdb.firebaseio.com').replace(/\/$/, '');
       const resetPayload = JSON.stringify({
@@ -203,7 +210,7 @@ export default function LiveCameraPage() {
         console.warn('Auto mode reset on exit notice:', err);
       }
     };
-  }, [cameraControl.mode, setCameraMode, firebaseConfig]);
+  }, [setCameraMode, firebaseConfig]);
 
   const handleModeToggle = async (newMode: 'auto' | 'manual') => {
     if (newMode === 'manual' && !isAuthenticated) {
@@ -213,7 +220,7 @@ export default function LiveCameraPage() {
     setIsSendingToGateway(true);
     await setCameraMode(newMode);
     setLastActionStatus(newMode === 'manual' ? 'Manual Control Active' : 'Auto Mode Active');
-    setTimeout(() => setIsSendingToGateway(false), 500);
+    setTimeout(() => setIsSendingToGateway(false), 400);
   };
 
   const handleDirectionClick = async (deltaPan: number, cmd: 'pan_left' | 'pan_right') => {
@@ -224,7 +231,7 @@ export default function LiveCameraPage() {
     setIsSendingToGateway(true);
     await sendCameraStep(deltaPan, 0, cmd);
     setLastActionStatus(`Moved ${cmd === 'pan_left' ? 'Left' : 'Right'} (Pan: ${cameraControl.pan_angle}°)`);
-    setTimeout(() => setIsSendingToGateway(false), 350);
+    setTimeout(() => setIsSendingToGateway(false), 300);
   };
 
   const handleCenterPreset = async () => {
@@ -235,7 +242,7 @@ export default function LiveCameraPage() {
     setIsSendingToGateway(true);
     await updateCameraCoords(90, 90, 'center');
     setLastActionStatus('Reset to Center (90°)');
-    setTimeout(() => setIsSendingToGateway(false), 350);
+    setTimeout(() => setIsSendingToGateway(false), 300);
   };
 
   const handleSliderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,12 +267,10 @@ export default function LiveCameraPage() {
 
   const openFullscreen = () => {
     setIsFullscreen(true);
-    // Attempt standard HTML5 fullscreen if available
     try {
       if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
-      // Attempt orientation lock to landscape on supported mobile browsers
       if (typeof window !== 'undefined' && window.screen && (window.screen as any).orientation?.lock) {
         (window.screen as any).orientation.lock('landscape').catch(() => {});
       }
@@ -317,7 +322,7 @@ export default function LiveCameraPage() {
                   cameraControl.mode === 'manual' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
                 }`}
               />
-              <span>{cameraControl.mode === 'manual' ? 'Manual Mode' : 'Auto Mode'}</span>
+              <span>{cameraControl.mode === 'manual' ? 'Manual Mode Active' : 'Auto Patrol Mode'}</span>
             </div>
           </div>
         </div>
@@ -438,7 +443,7 @@ export default function LiveCameraPage() {
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-emerald-600" />
               <h3 className="font-headline text-xs font-bold uppercase tracking-wider text-slate-900">
-                Camera Mode
+                Camera Control Mode
               </h3>
             </div>
             {!isAuthenticated && (
@@ -455,12 +460,12 @@ export default function LiveCameraPage() {
               onClick={() => handleModeToggle('auto')}
               className={`h-11 px-3 rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                 cameraControl.mode === 'auto'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30'
                   : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Bot className="w-4 h-4" />
-              <span>1. Auto Mode</span>
+              <span>1. Auto Patrol Mode</span>
             </button>
 
             <button
@@ -468,115 +473,139 @@ export default function LiveCameraPage() {
               onClick={() => handleModeToggle('manual')}
               className={`h-11 px-3 rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                 cameraControl.mode === 'manual'
-                  ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm'
+                  ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm ring-2 ring-amber-500/40'
                   : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Gamepad2 className="w-4 h-4" />
-              <span>2. Manual Mode</span>
+              <span>2. Manual Joystick Mode</span>
             </button>
           </div>
         </div>
       </section>
 
-      {/* 4. HORIZONTAL (LEFT-RIGHT) SERVO OPERATION */}
+      {/* 4. HORIZONTAL SERVO OPERATION (ONLY VISIBLE IN MANUAL MODE) */}
       <section className="px-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Compass className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-headline text-xs uppercase tracking-wider font-bold text-slate-900">
-                Camera Rotation (Current: {cameraControl.pan_angle}°)
-              </h3>
+        {cameraControl.mode === 'manual' ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-emerald-600" />
+                <h3 className="font-headline text-xs uppercase tracking-wider font-bold text-slate-900">
+                  Manual Rotation Controls (Current: {cameraControl.pan_angle}°)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleCenterPreset}
+                className="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Center (90°)</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              {/* Left / Right Horizontal Controls */}
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-center gap-4 w-full py-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
+                    className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
+                    title="Turn Left"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-emerald-600" />
+                    <span>Turn Left</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDirectionClick(stepSize, 'pan_right')}
+                    className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
+                    title="Turn Right"
+                  >
+                    <span>Turn Right</span>
+                    <ChevronRight className="w-6 h-6 text-emerald-600" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Rotation Step:</span>
+                  {[5, 10, 20].map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => setStepSize(sz)}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
+                        stepSize === sz
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      ±{sz}°
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Precision Horizontal Angle Slider */}
+              <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-headline font-bold text-slate-700">Horizontal Angle (0° - 180°)</span>
+                    <span className="font-mono font-bold text-emerald-700 text-sm">{cameraControl.pan_angle}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="180"
+                    value={cameraControl.pan_angle}
+                    onChange={handleSliderChange}
+                    className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                  <div className="flex justify-between text-[10px] font-mono text-slate-400">
+                    <span>0° (Full Left)</span>
+                    <span>90° (Center)</span>
+                    <span>180° (Full Right)</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500 font-mono">
+                  Status: <strong className="text-slate-800">{lastActionStatus}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="font-headline text-sm font-bold text-slate-900">
+                  {lang === 'hi' ? 'ऑटो पेट्रोल मोड सक्रिय' : 'Auto Patrol Mode Active'}
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {lang === 'hi'
+                    ? 'कैमरा स्वचालित रूप से खेत की निगरानी कर रहा है। रोटेशन नियंत्रण के लिए ऊपर मैनुअल मोड चुनें।'
+                    : 'The camera is automatically monitoring your field. Select Manual Mode above to enable rotation controls.'}
+                </p>
+              </div>
             </div>
             <button
               type="button"
-              onClick={handleCenterPreset}
-              className="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
+              onClick={() => handleModeToggle('manual')}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-headline text-xs font-bold whitespace-nowrap transition-all border border-slate-200"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Center (90°)</span>
+              {lang === 'hi' ? 'मैनुअल सक्षम करें' : 'Enable Manual'}
             </button>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            {/* Left / Right Horizontal Controls */}
-            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
-              <div className="flex items-center justify-center gap-4 w-full py-2">
-                {/* Turn Left Button */}
-                <button
-                  type="button"
-                  onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
-                  className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
-                  title="Turn Left"
-                >
-                  <ChevronLeft className="w-6 h-6 text-emerald-600" />
-                  <span>Turn Left</span>
-                </button>
-
-                {/* Turn Right Button */}
-                <button
-                  type="button"
-                  onClick={() => handleDirectionClick(stepSize, 'pan_right')}
-                  className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
-                  title="Turn Right"
-                >
-                  <span>Turn Right</span>
-                  <ChevronRight className="w-6 h-6 text-emerald-600" />
-                </button>
-              </div>
-
-              {/* Step size selector */}
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-[10px] text-slate-500 font-bold uppercase">Rotation Step:</span>
-                {[5, 10, 20].map((sz) => (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => setStepSize(sz)}
-                    className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
-                      stepSize === sz
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    ±{sz}°
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Precision Horizontal Angle Slider */}
-            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-headline font-bold text-slate-700">Horizontal Angle (0° - 180°)</span>
-                  <span className="font-mono font-bold text-emerald-700 text-sm">{cameraControl.pan_angle}°</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="180"
-                  value={cameraControl.pan_angle}
-                  onChange={handleSliderChange}
-                  className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                />
-                <div className="flex justify-between text-[10px] font-mono text-slate-400">
-                  <span>0° (Full Left)</span>
-                  <span>90° (Center)</span>
-                  <span>180° (Full Right)</span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500 font-mono">
-                Status: <strong className="text-slate-800">{lastActionStatus}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </section>
 
-      {/* 5. FULLSCREEN LANDSCAPE VIEW MODAL WITH SIDE MOVEMENT BUTTONS */}
+      {/* 5. FULLSCREEN LANDSCAPE VIEW MODAL */}
       {isFullscreen && (
         <div
           ref={fullscreenContainerRef}
@@ -616,7 +645,7 @@ export default function LiveCameraPage() {
                   </span>
                 </div>
                 <span className="font-mono text-xs text-emerald-300 font-bold px-2 py-1 rounded bg-black/60 backdrop-blur-md">
-                  ANGLE: {cameraControl.pan_angle}°
+                  MODE: {cameraControl.mode.toUpperCase()} • {cameraControl.pan_angle}°
                 </span>
               </div>
 
@@ -642,60 +671,80 @@ export default function LiveCameraPage() {
               </div>
             </div>
 
-            {/* Floating Left Movement Button (Left side of screen) */}
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
-                title="Pan Left"
-              >
-                <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
-                <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Left</span>
-              </button>
-            </div>
-
-            {/* Floating Right Movement Button (Right side of screen) */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleDirectionClick(stepSize, 'pan_right')}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
-                title="Pan Right"
-              >
-                <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
-                <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Right</span>
-              </button>
-            </div>
-
-            {/* Bottom Overlay Info & Center Button */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-center gap-3 text-white z-30 pointer-events-auto">
-              <button
-                type="button"
-                onClick={handleCenterPreset}
-                className="px-4 py-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 font-headline text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all text-slate-200"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Center (90°)</span>
-              </button>
-
-              <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/20">
-                <span className="text-[10px] text-slate-300 uppercase font-bold mr-1">Step:</span>
-                {[5, 10, 20].map((sz) => (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => setStepSize(sz)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
-                      stepSize === sz
-                        ? 'bg-emerald-500 text-slate-950'
-                        : 'text-slate-300 hover:text-white'
-                    }`}
-                  >
-                    ±{sz}°
-                  </button>
-                ))}
+            {/* Floating Left Movement Button (ONLY in Manual Mode) */}
+            {cameraControl.mode === 'manual' && (
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2 animate-in fade-in">
+                <button
+                  type="button"
+                  onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
+                  title="Pan Left"
+                >
+                  <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+                  <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Left</span>
+                </button>
               </div>
+            )}
+
+            {/* Floating Right Movement Button (ONLY in Manual Mode) */}
+            {cameraControl.mode === 'manual' && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2 animate-in fade-in">
+                <button
+                  type="button"
+                  onClick={() => handleDirectionClick(stepSize, 'pan_right')}
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
+                  title="Pan Right"
+                >
+                  <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
+                  <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Right</span>
+                </button>
+              </div>
+            )}
+
+            {/* Bottom Overlay Info & Mode Controls */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-center gap-3 text-white z-30 pointer-events-auto">
+              {cameraControl.mode === 'manual' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCenterPreset}
+                    className="px-4 py-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 font-headline text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all text-slate-200"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Center (90°)</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/20">
+                    <span className="text-[10px] text-slate-300 uppercase font-bold mr-1">Step:</span>
+                    {[5, 10, 20].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setStepSize(sz)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
+                          stepSize === sz
+                            ? 'bg-emerald-500 text-slate-950'
+                            : 'text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        ±{sz}°
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-xs text-slate-200 font-headline">
+                  <Bot className="w-4 h-4 text-emerald-400" />
+                  <span>Auto Patrol Mode Active</span>
+                  <button
+                    type="button"
+                    onClick={() => handleModeToggle('manual')}
+                    className="ml-2 px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white font-bold uppercase text-[10px]"
+                  >
+                    Switch to Manual
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
