@@ -58,20 +58,11 @@ interface AuthContextType {
 
 const DEFAULT_FIREBASE_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || 'https://sample-629de-default-rtdb.firebaseio.com';
 
-const defaultProfile: UserProfile = {
-  uid: 'usr_baldev_singh',
-  email: 'baldev.singh@agroeye.farm',
-  displayName: 'Sardar Baldev Singh',
-  phoneNumber: '+91 98765 43210',
-  farmName: 'my Farm Dabok (Sector 1)',
-  location: 'Dabok, Udaipur, Rajasthan',
-  crop: 'Rice / Foliar Canopy',
-  farmSize: '24.5 Acres',
-  role: 'farmer',
-  createdAt: '2026-01-15T08:00:00.000Z',
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function sanitizeEmailKey(email: string): string {
+  return email.toLowerCase().trim().replace(/[\.\#\$\[\]\/@]/g, '_');
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -83,14 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return JSON.parse(cached);
         } catch {}
       }
-      return defaultProfile;
     }
-    return defaultProfile;
+    return null;
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Sync profile to Firebase RTDB
-  const syncProfileToFirebase = useCallback(async (profile: UserProfile) => {
+  const syncProfileToFirebase = useCallback(async (profile: UserProfile, password?: string) => {
     const dbUrl = DEFAULT_FIREBASE_URL.replace(/\/$/, '');
     try {
       await fetch(`${dbUrl}/users/${profile.uid}.json`, {
@@ -100,6 +90,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e) {
       console.warn('Profile cloud sync notice:', e);
+    }
+
+    if (profile.email) {
+      const emailKey = sanitizeEmailKey(profile.email);
+      try {
+        const accPayload: any = {
+          uid: profile.uid,
+          email: profile.email,
+          displayName: profile.displayName,
+          phoneNumber: profile.phoneNumber || '',
+          farmName: profile.farmName || '',
+          location: profile.location || '',
+          crop: profile.crop || '',
+          farmSize: profile.farmSize || '',
+          updatedAt: new Date().toISOString(),
+        };
+        if (password) {
+          accPayload.password = password;
+        }
+        await fetch(`${dbUrl}/registered_accounts/${emailKey}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accPayload),
+        });
+      } catch (e) {
+        console.warn('Account index sync notice:', e);
+      }
     }
 
     const { db } = getFirebaseInstance();
@@ -131,7 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { auth } = getFirebaseInstance();
 
     if (!auth) {
-      // Check cached profile
       const localProfile = localStorage.getItem('agroeye_user_profile');
       if (localProfile) {
         try {
@@ -145,7 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Try fetching full saved profile from Firebase RTDB
         const cloudProfile = await fetchProfileFromFirebase(firebaseUser.uid);
         if (cloudProfile) {
           setUserProfile(cloudProfile);
@@ -153,16 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('agroeye_user_profile', JSON.stringify(cloudProfile));
           }
         } else {
-          // Construct initial profile from Firebase User
           const newProfile: UserProfile = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Farm Operator'),
-            phoneNumber: firebaseUser.phoneNumber || '+91 98765 43210',
+            displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Farmer'),
+            phoneNumber: firebaseUser.phoneNumber || '',
             farmName: 'my Farm Dabok',
             location: 'Dabok, Udaipur',
             crop: 'Rice / Foliar Canopy',
-            farmSize: '24.5 Acres',
+            farmSize: '5 Acres',
             role: 'farmer',
             createdAt: new Date().toISOString(),
             lastLoginAt: new Date().toISOString(),
@@ -182,29 +196,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const registerWithEmail = async (data: RegisterData) => {
     setIsLoading(true);
+    const dbUrl = DEFAULT_FIREBASE_URL.replace(/\/$/, '');
+    const cleanEmail = data.email.toLowerCase().trim();
+    const emailKey = sanitizeEmailKey(cleanEmail);
+
     try {
+      // 1. Check if account already exists in RTDB
+      try {
+        const checkRes = await fetch(`${dbUrl}/registered_accounts/${emailKey}.json`, { cache: 'no-store' });
+        if (checkRes.ok) {
+          const existingAcc = await checkRes.json();
+          if (existingAcc && existingAcc.email) {
+            throw new Error('An account with this email is already registered. Please sign in.');
+          }
+        }
+      } catch (err: any) {
+        if (err.message?.includes('already registered')) throw err;
+      }
+
+      // 2. Firebase Auth registration if available
       const { auth } = getFirebaseInstance();
-      let uid = 'usr_' + Date.now();
+      let uid = 'usr_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
 
       if (auth) {
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+          const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
           uid = userCredential.user.uid;
           if (data.displayName) {
             await updateProfile(userCredential.user, { displayName: data.displayName });
           }
         } catch (authErr: any) {
-          console.warn('Firebase Auth create user fallback:', authErr);
-          // If auth domain is restricted or demo, continue with local and RTDB persistence
+          if (authErr.code === 'auth/email-already-in-use') {
+            throw new Error('An account with this email is already registered. Please sign in.');
+          } else if (authErr.code === 'auth/weak-password') {
+            throw new Error('Password must be at least 6 characters.');
+          } else if (authErr.code === 'auth/invalid-email') {
+            throw new Error('Invalid email address format.');
+          }
+          console.warn('Firebase Auth user creation notice:', authErr);
         }
       }
 
+      // 3. Store full UserProfile
       const profile: UserProfile = {
         uid,
-        email: data.email,
-        displayName: data.displayName || data.email.split('@')[0],
+        email: cleanEmail,
+        displayName: data.displayName || cleanEmail.split('@')[0],
         phoneNumber: data.phoneNumber || '',
-        farmName: data.farmName || 'Primary Farm Plot',
+        farmName: data.farmName || 'Primary Farm Sector',
         location: data.location || 'Dabok, Udaipur',
         crop: data.crop || 'Rice / Paddy',
         farmSize: data.farmSize || '5 Acres',
@@ -213,11 +252,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastLoginAt: new Date().toISOString(),
       };
 
+      // 4. Save account credential index and profile to Firebase RTDB
+      await syncProfileToFirebase(profile, data.password);
+
       setUserProfile(profile);
       if (typeof window !== 'undefined') {
         localStorage.setItem('agroeye_user_profile', JSON.stringify(profile));
       }
-      await syncProfileToFirebase(profile);
     } catch (err: any) {
       console.error('Registration error:', err);
       throw err;
@@ -228,32 +269,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithEmail = async (email: string, pass: string) => {
     setIsLoading(true);
+    const dbUrl = DEFAULT_FIREBASE_URL.replace(/\/$/, '');
+    const cleanEmail = email.toLowerCase().trim();
+    const emailKey = sanitizeEmailKey(cleanEmail);
+
     try {
       const { auth } = getFirebaseInstance();
-      let uid = '';
+      let authenticatedUid: string | null = null;
+      let authError: any = null;
 
+      // 1. Try Firebase Auth first if initialized
       if (auth) {
         try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-          uid = userCredential.user.uid;
-        } catch (authErr: any) {
-          console.warn('Firebase Auth sign-in fallback:', authErr);
+          const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+          authenticatedUid = userCredential.user.uid;
+        } catch (err: any) {
+          authError = err;
         }
       }
 
-      if (!uid) {
-        uid = 'usr_' + Math.abs(email.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0));
+      // 2. Check Firebase RTDB registered_accounts index
+      if (!authenticatedUid) {
+        let accountData: any = null;
+        try {
+          const res = await fetch(`${dbUrl}/registered_accounts/${emailKey}.json`, { cache: 'no-store' });
+          if (res.ok) {
+            accountData = await res.json();
+          }
+        } catch (e) {
+          console.warn('Account index lookup notice:', e);
+        }
+
+        if (!accountData) {
+          // If neither Firebase Auth succeeded nor account exists in RTDB
+          if (authError?.code === 'auth/wrong-password' || authError?.code === 'auth/invalid-credential') {
+            throw new Error('Incorrect password. Please verify your credentials.');
+          }
+          throw new Error('No registered account found with this email. Please create an account first.');
+        }
+
+        // Account exists in RTDB: Verify password
+        if (accountData.password && accountData.password !== pass) {
+          throw new Error('Incorrect password. Please verify your credentials.');
+        }
+
+        authenticatedUid = accountData.uid;
       }
 
-      const cloudProfile = await fetchProfileFromFirebase(uid);
+      if (!authenticatedUid) {
+        throw new Error('No registered account found with this email. Please create an account first.');
+      }
+
+      // 3. Load user profile
+      const cloudProfile = await fetchProfileFromFirebase(authenticatedUid);
       const profile: UserProfile = cloudProfile || {
-        uid,
-        email,
-        displayName: email.split('@')[0],
+        uid: authenticatedUid,
+        email: cleanEmail,
+        displayName: cleanEmail.split('@')[0],
         farmName: 'my Farm Dabok',
         location: 'Dabok, Udaipur',
-        crop: 'Rice / Foliar Canopy',
-        farmSize: '24.5 Acres',
+        crop: 'Rice / Paddy',
+        farmSize: '5 Acres',
         role: 'farmer',
         lastLoginAt: new Date().toISOString(),
       };
@@ -265,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       syncProfileToFirebase(profile);
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Login validation error:', err);
       throw err;
     } finally {
       setIsLoading(false);
@@ -303,10 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAsOperator = async () => {
-    setUserProfile(defaultProfile);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('agroeye_user_profile', JSON.stringify(defaultProfile));
-    }
+    // No-op or redirects
   };
 
   return (
@@ -315,7 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         userProfile,
         operator: userProfile,
-        isAuthenticated: !!userProfile || !!user,
+        isAuthenticated: !!userProfile,
         isLoading,
         registerWithEmail,
         loginWithEmail,

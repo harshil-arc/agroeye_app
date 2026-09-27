@@ -161,7 +161,28 @@ export default function ProfilePage() {
           )}
 
           {/* User Details / Edit Form */}
-          {isEditingProfile ? (
+          {!isAuthenticated || !userProfile ? (
+            <div className="relative z-10 p-6 text-center flex flex-col items-center justify-center bg-slate-50/90 rounded-2xl border border-slate-200">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-2xl shadow-inner mb-3">
+                🌱
+              </div>
+              <h3 className="font-headline text-lg font-bold text-slate-900">
+                {lang === 'hi' ? 'किसान खाता लॉगिन करें' : 'Sign In to Your Farm Account'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mb-4 leading-relaxed">
+                {lang === 'hi'
+                  ? 'लाइव सेंसर टेलीमेट्री, रोग पहचान इतिहास और खेत प्रोफ़ाइल को सुरक्षित रूप से सिंक करने के लिए लॉगिन करें।'
+                  : 'Sign in to access your farm plot records, edge disease detections, and cloud synchronization.'}
+              </p>
+              <Link
+                href="/login"
+                className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>{lang === 'hi' ? 'लॉगिन / रजिस्टर' : 'Sign In / Register'}</span>
+              </Link>
+            </div>
+          ) : isEditingProfile ? (
             <form onSubmit={handleSaveProfile} className="relative z-10 space-y-3 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
