@@ -219,11 +219,31 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
+  const [deletedDetectionIds, setDeletedDetectionIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('agroeye_deleted_detection_ids');
+      if (cached) {
+        try { return JSON.parse(cached); } catch {}
+      }
+    }
+    return [];
+  });
+
+  const deletedDetectionIdsRef = useRef<string[]>(deletedDetectionIds);
+  useEffect(() => {
+    deletedDetectionIdsRef.current = deletedDetectionIds;
+  }, [deletedDetectionIds]);
+
   const [detections, setDetections] = useState<AIDetection[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('agroeye_offline_detections');
+      const delCached = localStorage.getItem('agroeye_deleted_detection_ids');
+      const delIds: string[] = delCached ? JSON.parse(delCached) : [];
       if (cached) {
-        try { return JSON.parse(cached); } catch {}
+        try {
+          const list: AIDetection[] = JSON.parse(cached);
+          return list.filter((item) => !delIds.includes(item.id));
+        } catch {}
       }
     }
     return [];
@@ -371,13 +391,17 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       // 1. Process real disease_alerts from Firebase
       if (data.disease_alerts && typeof data.disease_alerts === 'object') {
+        const currentDeleted = deletedDetectionIdsRef.current;
         const entries = Object.entries(data.disease_alerts);
         const parsedList: AIDetection[] = entries
+          .filter(([key]) => !currentDeleted.includes(key))
           .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
           .reverse();
 
         setDetections(parsedList);
-        localStorage.setItem('agroeye_offline_detections', JSON.stringify(parsedList));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('agroeye_offline_detections', JSON.stringify(parsedList));
+        }
 
         if (parsedList.length > 0) {
           const newest = parsedList[0];
@@ -542,8 +566,10 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
       const unsubAlerts = onValue(alertsRef, (snapshot) => {
         const data = snapshot.val();
         if (data && typeof data === 'object') {
+          const currentDeleted = deletedDetectionIdsRef.current;
           const entries = Object.entries(data);
           const parsedList: AIDetection[] = entries
+            .filter(([key]) => !currentDeleted.includes(key))
             .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
             .reverse();
 
@@ -702,9 +728,19 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteDetection = useCallback(async (id: string) => {
-    // Update local state and offline cache
+    // 1. Record ID in blacklist and persist
+    setDeletedDetectionIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('agroeye_deleted_detection_ids', JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    // 2. Update local state and offline cache
     setDetections((prev) => {
-      const updated = prev.filter((d) => d.id !== id);
+      const updated = prev.filter((d) => d.id !== id && d.code.replace('#', '') !== id);
       if (typeof window !== 'undefined') {
         localStorage.setItem('agroeye_offline_detections', JSON.stringify(updated));
       }
@@ -713,7 +749,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
     setAutoOpenedDetection((prev) => (prev?.id === id ? null : prev));
 
-    // Delete from Firebase RTDB if configured
+    // 3. Delete from Firebase RTDB if configured
     const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
     try {
       fetch(`${dbUrl}/disease_alerts/${id}.json`, {

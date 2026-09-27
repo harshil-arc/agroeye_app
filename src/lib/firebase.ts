@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getDatabase, Database, ref, onValue, off } from 'firebase/database';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, Auth, onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut, User } from 'firebase/auth';
+import { getAuth, Auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInAnonymously, signOut, User } from 'firebase/auth';
 import { FirebaseConfig } from '@/types';
 
 // Default / fallback Firebase config from environment variables
@@ -62,5 +62,5 @@ export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
   }
 }
 
-export { onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut };
+export { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInAnonymously, signOut };
 export type { User };

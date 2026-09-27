@@ -32,6 +32,7 @@ export default function DetectionDetailPage() {
   const [isTreated, setIsTreated] = useState<boolean>(false);
   const [showDroneSuccess, setShowDroneSuccess] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
   const detectionId = params?.id as string;
   const detection = detections.find((d) => d.id === detectionId || d.code.replace('#', '') === detectionId) || (detections.length > 0 ? detections[0] : null);
@@ -343,16 +344,36 @@ export default function DetectionDetailPage() {
           <span>Schedule Spray Drone</span>
         </button>
 
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="w-full sm:w-auto h-12 px-4 rounded-xl bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 border border-slate-200 text-slate-700 font-headline text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm flex-shrink-0"
-          title="Delete this detection record"
-        >
-          <Trash2 className="w-4 h-4 text-rose-500" />
-          <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
-        </button>
+        {showDeleteConfirm ? (
+          <div className="w-full sm:w-auto h-12 px-3 rounded-xl bg-rose-50 border border-rose-300 flex items-center gap-2 animate-in fade-in">
+            <span className="text-xs text-rose-800 font-bold">Permanently delete?</span>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="h-8 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold uppercase transition-all shadow-xs active:scale-95"
+            >
+              {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="h-8 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all active:scale-95"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full sm:w-auto h-12 px-4 rounded-xl bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 border border-slate-200 text-slate-700 font-headline text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm flex-shrink-0"
+            title="Delete this detection record"
+          >
+            <Trash2 className="w-4 h-4 text-rose-500" />
+            <span>Delete</span>
+          </button>
+        )}
       </div>
     </div>
   );

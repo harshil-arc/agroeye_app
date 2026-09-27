@@ -33,7 +33,7 @@ export default function Header() {
     thresholdAlerts,
     dismissThresholdAlert,
   } = useFarmData();
-  const { isAuthenticated, operator, loginAsOperator, logout, isAuthModalOpen, setIsAuthModalOpen } = useAuth();
+  const { isAuthenticated, operator } = useAuth();
   const { lang, setLang, t } = useLanguage();
 
   const [showAlertDrawer, setShowAlertDrawer] = useState<boolean>(false);
@@ -147,35 +147,30 @@ export default function Header() {
               )}
             </button>
 
-            {/* Operator Auth Status Pill */}
+            {/* Auth Status & Profile */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-headline font-bold">
-                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden sm:inline truncate max-w-[90px]">
-                  {operator?.displayName || 'Operator'}
-                </span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAuthModalOpen(true)}
-                className="h-8 px-2.5 rounded-lg bg-slate-900 hover:bg-black text-white font-headline text-xs font-bold flex items-center gap-1 shadow-xs transition-all"
-                title="Sign in as Operator"
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-headline font-bold transition-all"
+                title="View Profile & Farm Settings"
               >
-                <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">{t('operatorLogin')}</span>
-              </button>
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                  {operator?.displayName ? operator.displayName.charAt(0).toUpperCase() : 'F'}
+                </div>
+                <span className="hidden sm:inline truncate max-w-[100px]">
+                  {operator?.displayName || 'Farmer'}
+                </span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+                title="Login or Register Account"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{lang === 'hi' ? 'लॉगिन / रजिस्टर' : 'Login / Register'}</span>
+              </Link>
             )}
-
-            {/* Link to Profile */}
-            <Link href="/profile" className="relative block flex-shrink-0" title="Farm Operator Profile">
-              <img
-                alt="Farmer Profile"
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-600/30 shadow-sm hover:ring-emerald-600 transition-all"
-                src="https://lh3.googleusercontent.com/aida/AEtjO1W7Z0YmoEh7fgrCcTh2Zj1tOtDNvssAXZe49VQblwr0m_SajWroswX9VueDJ1XL7Oq754rKujEHCOicP945BMczKQk4C39fpFmtoALbhwnKL3sFZIf8n55_snPfmLlgYwxzHco0DLEj_QUM6odyMdwom9pPogxl7f4pdZO448qjd2hrxU0Kf9gYiaKFqhnGa9dbjFmzz6OG38MEYvVN2qP5x4cGNJCgIbnr67uhoLfOWiyTUx2RyQb0eg"
-              />
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-1 ring-white" />
-            </Link>
           </div>
         </div>
       </header>
@@ -249,57 +244,6 @@ export default function Header() {
             >
               Close Alerts
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* OPERATOR AUTH MODAL */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-headline text-base font-bold text-slate-900">
-                    Operator Access Required
-                  </h3>
-                  <span className="text-xs text-slate-500">Authenticate to control PTZ servo camera</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAuthModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Camera pan/tilt controls and threshold configurations are secured. Sign in as an authorized farm operator to proceed.
-            </p>
-
-            <div className="space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={loginAsOperator}
-                className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition-all"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Sign in as Farm Operator (Instant)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsAuthModalOpen(false)}
-                className="w-full h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-xs font-semibold"
-              >
-                Continue in Guest View Mode
-              </button>
-            </div>
           </div>
         </div>
       )}

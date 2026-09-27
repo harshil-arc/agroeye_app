@@ -40,6 +40,7 @@ export default function DetectionsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'unhandled' | 'treated'>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteSuccessToast, setDeleteSuccessToast] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -307,22 +308,36 @@ export default function DetectionsPage() {
                     </Link>
 
                     {confirmDeleteId === item.id ? (
-                      <div className="flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg p-1 animate-in fade-in">
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        className="flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg p-1 animate-in fade-in"
+                      >
                         <span className="text-[10px] text-rose-800 font-bold px-1">Delete?</span>
                         <button
                           type="button"
-                          onClick={() => {
-                            deleteDetection(item.id);
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            await deleteDetection(item.id);
                             setConfirmDeleteId(null);
+                            setDeleteSuccessToast(`Detection record ${item.code} deleted successfully`);
+                            setTimeout(() => setDeleteSuccessToast(null), 3000);
                           }}
-                          className="h-7 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase transition-all"
+                          className="h-7 px-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase transition-all shadow-xs active:scale-95"
                         >
                           Yes
                         </button>
                         <button
                           type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="h-7 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setConfirmDeleteId(null);
+                          }}
+                          className="h-7 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold transition-all active:scale-95"
                         >
                           Cancel
                         </button>
@@ -330,7 +345,11 @@ export default function DetectionsPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setConfirmDeleteId(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setConfirmDeleteId(item.id);
+                        }}
                         className="h-9 px-2.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 border border-slate-200 text-slate-600 font-headline text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
                         title="Delete Detection Record"
                       >
@@ -345,6 +364,14 @@ export default function DetectionsPage() {
           ))
         )}
       </section>
+
+      {/* Delete Feedback Toast */}
+      {deleteSuccessToast && (
+        <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 p-3 bg-slate-900 text-white rounded-xl shadow-xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
+          <Trash2 className="w-4 h-4 text-rose-400 flex-shrink-0" />
+          <span className="text-xs font-medium flex-1">{deleteSuccessToast}</span>
+        </div>
+      )}
     </div>
   );
 }
