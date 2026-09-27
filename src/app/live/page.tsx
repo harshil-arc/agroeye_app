@@ -8,74 +8,59 @@ import { getFirebaseInstance } from '@/lib/firebase';
 import { WebRTCStreamClient, WebRTCStreamStats } from '@/lib/webrtcClient';
 import {
   Video,
-  Play,
-  Pause,
-  Square,
+  VideoOff,
   Camera,
   Maximize2,
-  RotateCw,
-  Moon,
-  Sun,
+  Minimize2,
   Radio,
-  Wifi,
-  BatteryCharging,
   Sliders,
-  Cpu,
-  Shield,
-  HardDrive,
   Activity,
-  CheckCircle,
-  AlertOctagon,
-  ChevronUp,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ZoomIn,
-  ZoomOut,
   Crosshair,
-  Sparkles,
   Bot,
   Gamepad2,
   Lock,
   Compass,
   Check,
-  Loader2,
   RefreshCw,
   AlertTriangle,
-  UserCheck,
+  X,
+  RotateCcw
 } from 'lucide-react';
 
 export default function LiveCameraPage() {
   const {
     isOfflineMode,
-    latestImageUrl,
     cameraControl,
     setCameraMode,
     updateCameraCoords,
     sendCameraStep,
     firebaseConfig,
-    firebaseConnected,
   } = useFarmData();
 
   const { isAuthenticated, operator, setIsAuthModalOpen } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [isNightMode, setIsNightMode] = useState<boolean>(false);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastCode, setToastCode] = useState<string>('');
   const [clockString, setClockString] = useState<string>('');
   const [stepSize, setStepSize] = useState<number>(10);
   const [lastActionStatus, setLastActionStatus] = useState<string>('Ready');
-  const [isSendingToFirebase, setIsSendingToFirebase] = useState<boolean>(false);
+  const [isSendingToGateway, setIsSendingToGateway] = useState<boolean>(false);
   const [isRetryingStream, setIsRetryingStream] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const videoViewportRef = useRef<HTMLDivElement>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
+  const fullscreenVideoElementRef = useRef<HTMLVideoElement>(null);
   const webrtcClientRef = useRef<WebRTCStreamClient | null>(null);
 
   const [hasLiveStream, setHasLiveStream] = useState<boolean>(false);
+  const [streamMedia, setStreamMedia] = useState<MediaStream | null>(null);
   const [streamStats, setStreamStats] = useState<WebRTCStreamStats>({
     fps: 0,
     bitrateKbps: 0,
@@ -85,7 +70,6 @@ export default function LiveCameraPage() {
     iceState: 'idle',
     isRelayed: false,
   });
-  const [connectionStatusText, setConnectionStatusText] = useState<string>('Connecting...');
 
   // Live timestamp clock update
   useEffect(() => {
@@ -98,15 +82,17 @@ export default function LiveCameraPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // WebRTC Stream Initializer & Lifecycle Manager
-  const startWebRTC = useCallback(() => {
+  // Stream Initializer & Lifecycle Manager
+  const startStream = useCallback(() => {
     if (!isPlaying || isOfflineMode) return;
 
     const { db } = getFirebaseInstance();
-    if (!db) return;
+    if (!db) {
+      setHasLiveStream(false);
+      return;
+    }
 
     setIsRetryingStream(true);
-    setConnectionStatusText('Negotiating WebRTC / TURN...');
 
     if (webrtcClientRef.current) {
       webrtcClientRef.current.stop();
@@ -117,27 +103,27 @@ export default function LiveCameraPage() {
       db: db,
       onStream: (stream) => {
         setHasLiveStream(true);
+        setStreamMedia(stream);
         setIsRetryingStream(false);
-        setConnectionStatusText('Live Stream Active');
         if (videoElementRef.current) {
           videoElementRef.current.srcObject = stream;
           videoElementRef.current.play().catch(() => {});
+        }
+        if (fullscreenVideoElementRef.current) {
+          fullscreenVideoElementRef.current.srcObject = stream;
+          fullscreenVideoElementRef.current.play().catch(() => {});
         }
       },
       onStatsUpdate: (stats) => {
         setStreamStats(stats);
         setIsRetryingStream(false);
-        if (stats.connectionState === 'connected') {
-          setConnectionStatusText(stats.isRelayed ? 'Live (TURN Relay)' : 'Live (Direct P2P)');
-        } else if (stats.connectionState === 'connecting') {
-          setConnectionStatusText('Establishing Connection...');
-        } else if (stats.connectionState === 'timeout' || stats.connectionState === 'failed') {
-          setConnectionStatusText('Pi Camera Standby (Snapshot Preview)');
+        if (stats.connectionState === 'timeout' || stats.connectionState === 'failed') {
+          setHasLiveStream(false);
         }
       },
       onError: () => {
         setIsRetryingStream(false);
-        setConnectionStatusText('Pi Camera Standby (Snapshot Preview)');
+        setHasLiveStream(false);
       },
     });
 
@@ -146,19 +132,48 @@ export default function LiveCameraPage() {
   }, [isPlaying, isOfflineMode]);
 
   useEffect(() => {
-    startWebRTC();
+    startStream();
     return () => {
       if (webrtcClientRef.current) {
         webrtcClientRef.current.stop();
         webrtcClientRef.current = null;
       }
       setHasLiveStream(false);
+      setStreamMedia(null);
     };
-  }, [startWebRTC]);
+  }, [startStream]);
 
-  // Automatic reset to Auto Mode on unmount / page exit
+  // Keep video source synced when toggling fullscreen
   useEffect(() => {
+    if (streamMedia) {
+      if (videoElementRef.current) {
+        videoElementRef.current.srcObject = streamMedia;
+        videoElementRef.current.play().catch(() => {});
+      }
+      if (fullscreenVideoElementRef.current) {
+        fullscreenVideoElementRef.current.srcObject = streamMedia;
+        fullscreenVideoElementRef.current.play().catch(() => {});
+      }
+    }
+  }, [isFullscreen, streamMedia]);
+
+  // Automatic reset to Auto Mode on unmount / tab switch / page exit
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && cameraControl.mode === 'manual') {
+        setCameraMode('auto').catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handleVisibilityChange);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handleVisibilityChange);
+
+      setCameraMode('auto').catch(() => {});
+
       const dbUrl = (firebaseConfig.databaseURL || 'https://sample-629de-default-rtdb.firebaseio.com').replace(/\/$/, '');
       const resetPayload = JSON.stringify({
         mode: 'auto',
@@ -185,31 +200,31 @@ export default function LiveCameraPage() {
           }).catch(() => {});
         }
       } catch (err) {
-        console.warn('Auto mode reset on unmount notice:', err);
+        console.warn('Auto mode reset on exit notice:', err);
       }
     };
-  }, [firebaseConfig]);
+  }, [cameraControl.mode, setCameraMode, firebaseConfig]);
 
   const handleModeToggle = async (newMode: 'auto' | 'manual') => {
     if (newMode === 'manual' && !isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
-    setIsSendingToFirebase(true);
+    setIsSendingToGateway(true);
     await setCameraMode(newMode);
-    setLastActionStatus(newMode === 'manual' ? 'Manual Joystick Active' : 'Auto Patrol Resumed');
-    setTimeout(() => setIsSendingToFirebase(false), 500);
+    setLastActionStatus(newMode === 'manual' ? 'Manual Control Active' : 'Auto Mode Active');
+    setTimeout(() => setIsSendingToGateway(false), 500);
   };
 
-  const handleDirectionClick = async (deltaPan: number, deltaTilt: number, cmd: 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down') => {
+  const handleDirectionClick = async (deltaPan: number, cmd: 'pan_left' | 'pan_right') => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
-    setIsSendingToFirebase(true);
-    await sendCameraStep(deltaPan, deltaTilt, cmd);
-    setLastActionStatus(`Sent ${cmd.replace('_', ' ').toUpperCase()} to Firebase`);
-    setTimeout(() => setIsSendingToFirebase(false), 350);
+    setIsSendingToGateway(true);
+    await sendCameraStep(deltaPan, 0, cmd);
+    setLastActionStatus(`Moved ${cmd === 'pan_left' ? 'Left' : 'Right'} (Pan: ${cameraControl.pan_angle}°)`);
+    setTimeout(() => setIsSendingToGateway(false), 350);
   };
 
   const handleCenterPreset = async () => {
@@ -217,50 +232,57 @@ export default function LiveCameraPage() {
       setIsAuthModalOpen(true);
       return;
     }
-    setIsSendingToFirebase(true);
+    setIsSendingToGateway(true);
     await updateCameraCoords(90, 90, 'center');
-    setLastActionStatus('Reset to Center (90°, 90°)');
-    setTimeout(() => setIsSendingToFirebase(false), 350);
+    setLastActionStatus('Reset to Center (90°)');
+    setTimeout(() => setIsSendingToGateway(false), 350);
   };
 
-  const handleSliderChange = async (e: React.ChangeEvent<HTMLInputElement>, axis: 'pan' | 'tilt') => {
+  const handleSliderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
       return;
     }
     const val = Number(e.target.value);
-    if (axis === 'pan') {
-      await updateCameraCoords(val, cameraControl.tilt_angle, 'set_coords');
-    } else {
-      await updateCameraCoords(cameraControl.pan_angle, val, 'set_coords');
-    }
-    setLastActionStatus(`Servo updated: Pan ${cameraControl.pan_angle}°, Tilt ${cameraControl.tilt_angle}°`);
+    await updateCameraCoords(val, 90, 'set_coords');
+    setLastActionStatus(`Camera Angle: ${val}°`);
   };
 
   const handleSnapshot = () => {
     const snapId = `#SNAP_${Math.floor(1000 + Math.random() * 9000)}`;
     setToastCode(snapId);
-    setToastMessage('Snapshot captured from camera & saved to field log');
+    setToastMessage('Snapshot captured & saved');
     setShowToast(true);
     setTimeout(() => {
       setShowToast(false);
-    }, 4000);
+    }, 3500);
   };
 
-  const toggleFullscreen = () => {
-    if (!videoViewportRef.current) return;
-    if (!document.fullscreenElement) {
-      videoViewportRef.current.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen();
-    }
+  const openFullscreen = () => {
+    setIsFullscreen(true);
+    // Attempt standard HTML5 fullscreen if available
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      // Attempt orientation lock to landscape on supported mobile browsers
+      if (typeof window !== 'undefined' && window.screen && (window.screen as any).orientation?.lock) {
+        (window.screen as any).orientation.lock('landscape').catch(() => {});
+      }
+    } catch {}
   };
 
-  // Convert pan/tilt angles to visual CSS offsets
-  const panVisualX = (cameraControl.pan_angle - 90) * 0.35;
-  const tiltVisualY = -(cameraControl.tilt_angle - 90) * 0.35;
-
-  const isStreamOffline = !hasLiveStream && (streamStats.connectionState === 'timeout' || streamStats.connectionState === 'failed' || streamStats.connectionState === 'idle');
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      if (typeof window !== 'undefined' && window.screen && (window.screen as any).orientation?.unlock) {
+        (window.screen as any).orientation.unlock();
+      }
+    } catch {}
+  };
 
   return (
     <div className="flex flex-col w-full pb-14 space-y-4">
@@ -269,16 +291,16 @@ export default function LiveCameraPage() {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+              <span className={`w-2.5 h-2.5 rounded-full ${hasLiveStream ? 'bg-emerald-600 animate-pulse' : 'bg-rose-500'}`} />
               <span className="font-headline text-[11px] uppercase tracking-wider text-emerald-800 font-bold">
-                Camera Gateway • Raspberry Pi 4B Dual-Axis PTZ
+                {hasLiveStream ? 'Live Camera Feed' : 'Camera Status: Offline'}
               </span>
             </div>
             <h1 className="font-headline text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
-              Live Field Camera &amp; Servo Control
+              {t('liveCamera')}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Real-time video feed and dual-axis servo joystick (X-Pan 0-180° / Y-Tilt 0-180°) syncing to Firebase.
+              Live optical field view and horizontal axis camera rotation (Left - Right: 0° to 180°).
             </p>
           </div>
 
@@ -295,19 +317,19 @@ export default function LiveCameraPage() {
                   cameraControl.mode === 'manual' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
                 }`}
               />
-              <span>{cameraControl.mode === 'manual' ? '2. Manual Mode' : '1. Auto Patrol'}</span>
+              <span>{cameraControl.mode === 'manual' ? 'Manual Mode' : 'Auto Mode'}</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. VIDEO STREAM / SNAPSHOT VIEWPORT */}
+      {/* 2. VIDEO STREAM / CAMERA NOT WORKING VIEWPORT */}
       <section className="px-4">
         <div
           ref={videoViewportRef}
           className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5"
         >
-          {/* Active WebRTC Video Track */}
+          {/* Active Live Video Track */}
           <video
             ref={videoElementRef}
             autoPlay
@@ -318,84 +340,67 @@ export default function LiveCameraPage() {
             }`}
           />
 
-          {/* Fallback Snapshot Preview Layer */}
+          {/* Camera Not Working Screen (Shown when feed is unavailable) */}
           {!hasLiveStream && (
-            <div className="relative w-full aspect-[16/10] sm:aspect-video overflow-hidden group">
-              <img
-                alt="Raspberry Pi field camera snapshot"
-                className="w-full h-full object-cover transition-transform duration-300 will-change-transform"
-                style={{
-                  transform: `scale(1.08) translate(${panVisualX}px, ${tiltVisualY}px)`,
-                }}
-                src={latestImageUrl}
-                onError={(e) => {
-                  (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
-                }}
-              />
+            <div className="relative w-full aspect-[16/10] sm:aspect-video bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center mb-3 shadow-lg">
+                <VideoOff className="w-8 h-8 animate-pulse" />
+              </div>
 
-              {/* Night Vision Green Tint */}
-              {isNightMode && (
-                <div className="absolute inset-0 bg-emerald-950/40 mix-blend-color pointer-events-none transition-opacity duration-300" />
-              )}
+              <h3 className="font-headline text-lg sm:text-xl font-bold text-white tracking-tight">
+                {lang === 'hi' ? 'कैमरा काम नहीं कर रहा है' : 'The Camera is Not Working'}
+              </h3>
 
-              {/* Offline / Standby Status Banner */}
-              {isStreamOffline && (
-                <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-2xs flex flex-col items-center justify-center p-4 text-center text-white">
-                  <div className="bg-slate-900/90 border border-slate-700 p-3.5 rounded-2xl max-w-xs shadow-2xl flex flex-col items-center gap-2">
-                    <Radio className="w-6 h-6 text-amber-400 animate-pulse" />
-                    <div>
-                      <h4 className="font-headline text-xs font-bold text-white uppercase tracking-wider">
-                        Pi Camera Standby
-                      </h4>
-                      <p className="text-[11px] text-slate-300 mt-0.5">
-                        Rendering live snapshot stream. WebRTC auto-reconnecting.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={startWebRTC}
-                      className="mt-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-headline text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-xs"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isRetryingStream ? 'animate-spin' : ''}`} />
-                      <span>{isRetryingStream ? 'Negotiating...' : 'Retry WebRTC'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
+                {lang === 'hi'
+                  ? 'कैमरा फ़ीड वर्तमान में उपलब्ध नहीं है। कृपया कैमरा कनेक्शन और पावर जांचें।'
+                  : 'Live video feed is currently unavailable or disconnected. Please check camera power and connection.'}
+              </p>
+
+              <button
+                type="button"
+                onClick={startStream}
+                className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-md"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
+                <span>{isRetryingStream ? 'Checking Camera...' : 'Retry Connection'}</span>
+              </button>
             </div>
           )}
 
-          {/* Gradient Scrim & Reticle HUD */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none" />
+          {/* Reticle HUD & Gradient when active */}
+          {hasLiveStream && (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none" />
+              <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none" />
 
-          {/* Corner Reticles */}
-          <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none" />
-          <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none" />
-          <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none" />
-          <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none" />
+              {/* Top HUD Indicators */}
+              <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow">
+                    FARM CAMERA FEED • LIVE
+                  </span>
+                  <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
+                    <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
+                      MODE: {cameraControl.mode.toUpperCase()}
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-300 font-bold">
+                      PAN: {cameraControl.pan_angle}°
+                    </span>
+                  </div>
+                </div>
 
-          {/* Top HUD Indicators */}
-          <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow">
-                RASPBERRY PI CAM #01 • 1080P PTZ
-              </span>
-              <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
-                <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
-                  MODE: {cameraControl.mode.toUpperCase()}
-                </span>
-                <span className="font-mono text-[10px] text-emerald-300 font-bold">
-                  PAN: {cameraControl.pan_angle}° • TILT: {cameraControl.tilt_angle}°
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-0.5 rounded font-bold">
+                    {streamStats.fps > 0 ? `${streamStats.fps} FPS` : 'LIVE FEED'}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-0.5 rounded font-bold">
-                {hasLiveStream ? `${streamStats.fps} FPS` : 'SNAPSHOT MODE'}
-              </span>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Bottom Viewport Action Toolbar */}
           <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between text-white text-xs z-20">
@@ -404,55 +409,42 @@ export default function LiveCameraPage() {
                 type="button"
                 onClick={handleSnapshot}
                 className="h-8 px-2.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1 font-headline text-xs font-bold active:scale-95 transition-all"
-                title="Capture Field Snapshot"
+                title="Capture Snapshot"
               >
                 <Camera className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="hidden sm:inline">Capture</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsNightMode(!isNightMode)}
-                className={`h-8 px-2.5 rounded-lg border backdrop-blur-md flex items-center gap-1 font-headline text-xs font-bold active:scale-95 transition-all ${
-                  isNightMode
-                    ? 'bg-emerald-600 border-emerald-400 text-white'
-                    : 'bg-black/60 hover:bg-black/80 border-white/20 text-white'
-                }`}
-                title="Night Vision Filter"
-              >
-                <Moon className="w-3.5 h-3.5 text-emerald-300" />
-                <span className="hidden sm:inline">IR Night</span>
               </button>
             </div>
 
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={toggleFullscreen}
-                className="p-2 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 active:scale-95 transition-all"
-                title="Fullscreen View"
+                onClick={openFullscreen}
+                className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1.5 font-headline text-xs font-bold active:scale-95 transition-all"
+                title="Open Fullscreen Landscape View"
               >
-                <Maximize2 className="w-3.5 h-3.5" />
+                <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Fullscreen</span>
               </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. MODE SELECTOR & OPERATOR AUTH LOCK */}
+      {/* 3. MODE SELECTOR & OPERATOR AUTH */}
       <section className="px-4">
         <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-emerald-600" />
               <h3 className="font-headline text-xs font-bold uppercase tracking-wider text-slate-900">
-                Servo Operation Mode
+                Camera Mode
               </h3>
             </div>
             {!isAuthenticated && (
               <span className="text-[10px] font-headline font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Lock className="w-3 h-3" />
-                <span>Sign in required for manual joystick</span>
+                <span>Sign in required for manual control</span>
               </span>
             )}
           </div>
@@ -468,7 +460,7 @@ export default function LiveCameraPage() {
               }`}
             >
               <Bot className="w-4 h-4" />
-              <span>1. Auto Mode (Patrol)</span>
+              <span>1. Auto Mode</span>
             </button>
 
             <button
@@ -481,92 +473,71 @@ export default function LiveCameraPage() {
               }`}
             >
               <Gamepad2 className="w-4 h-4" />
-              <span>2. Manual Mode (PTZ)</span>
+              <span>2. Manual Mode</span>
             </button>
           </div>
         </div>
       </section>
 
-      {/* 4. DUAL-AXIS JOYSTICK & SLIDERS (MANUAL MODE) */}
+      {/* 4. HORIZONTAL (LEFT-RIGHT) SERVO OPERATION */}
       <section className="px-4">
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-emerald-600" />
               <h3 className="font-headline text-xs uppercase tracking-wider font-bold text-slate-900">
-                PTZ Dual-Axis Control Matrix (X: {cameraControl.pan_angle}° / Y: {cameraControl.tilt_angle}°)
+                Camera Rotation (Current: {cameraControl.pan_angle}°)
               </h3>
             </div>
             <button
               type="button"
               onClick={handleCenterPreset}
-              className="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-[11px] font-bold rounded-lg transition-all"
+              className="h-7 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
             >
-              Center (90°, 90°)
+              <RotateCcw className="w-3 h-3" />
+              <span>Center (90°)</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            {/* Virtual D-Pad Joystick */}
-            <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-200">
-              <div className="relative w-36 h-36 flex items-center justify-center">
-                {/* UP (Tilt Up) */}
+            {/* Left / Right Horizontal Controls */}
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-center gap-4 w-full py-2">
+                {/* Turn Left Button */}
                 <button
                   type="button"
-                  onClick={() => handleDirectionClick(0, stepSize, 'tilt_up')}
-                  className="absolute top-0 w-11 h-11 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-md border border-slate-200 flex items-center justify-center text-slate-700 transition-all active:scale-95"
-                  title="Tilt Up"
+                  onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
+                  className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
+                  title="Turn Left"
                 >
-                  <ChevronUp className="w-5 h-5" />
+                  <ChevronLeft className="w-6 h-6 text-emerald-600" />
+                  <span>Turn Left</span>
                 </button>
 
-                {/* DOWN (Tilt Down) */}
+                {/* Turn Right Button */}
                 <button
                   type="button"
-                  onClick={() => handleDirectionClick(0, -stepSize, 'tilt_down')}
-                  className="absolute bottom-0 w-11 h-11 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-md border border-slate-200 flex items-center justify-center text-slate-700 transition-all active:scale-95"
-                  title="Tilt Down"
+                  onClick={() => handleDirectionClick(stepSize, 'pan_right')}
+                  className="flex-1 h-14 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center gap-2 text-slate-800 font-headline text-sm font-bold transition-all active:scale-95"
+                  title="Turn Right"
                 >
-                  <ChevronDown className="w-5 h-5" />
+                  <span>Turn Right</span>
+                  <ChevronRight className="w-6 h-6 text-emerald-600" />
                 </button>
-
-                {/* LEFT (Pan Left) */}
-                <button
-                  type="button"
-                  onClick={() => handleDirectionClick(-stepSize, 0, 'pan_left')}
-                  className="absolute left-0 w-11 h-11 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-md border border-slate-200 flex items-center justify-center text-slate-700 transition-all active:scale-95"
-                  title="Pan Left"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-
-                {/* RIGHT (Pan Right) */}
-                <button
-                  type="button"
-                  onClick={() => handleDirectionClick(stepSize, 0, 'pan_right')}
-                  className="absolute right-0 w-11 h-11 bg-white hover:bg-emerald-50 active:bg-emerald-600 active:text-white rounded-xl shadow-md border border-slate-200 flex items-center justify-center text-slate-700 transition-all active:scale-95"
-                  title="Pan Right"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-
-                {/* Center Reticle */}
-                <div className="w-10 h-10 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shadow-md font-mono text-[10px] font-bold">
-                  PTZ
-                </div>
               </div>
 
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className="text-[10px] text-slate-500 font-bold uppercase">Step:</span>
+              {/* Step size selector */}
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-[10px] text-slate-500 font-bold uppercase">Rotation Step:</span>
                 {[5, 10, 20].map((sz) => (
                   <button
                     key={sz}
                     type="button"
                     onClick={() => setStepSize(sz)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all ${
+                    className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
                       stepSize === sz
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white border border-slate-200 text-slate-600'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     ±{sz}°
@@ -575,41 +546,29 @@ export default function LiveCameraPage() {
               </div>
             </div>
 
-            {/* Precision Angle Sliders */}
-            <div className="space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
-              {/* Pan Slider */}
-              <div className="space-y-1">
+            {/* Precision Horizontal Angle Slider */}
+            <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-headline font-bold text-slate-700">X-Axis Pan (0° - 180°)</span>
-                  <span className="font-mono font-bold text-emerald-700">{cameraControl.pan_angle}°</span>
+                  <span className="font-headline font-bold text-slate-700">Horizontal Angle (0° - 180°)</span>
+                  <span className="font-mono font-bold text-emerald-700 text-sm">{cameraControl.pan_angle}°</span>
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="180"
                   value={cameraControl.pan_angle}
-                  onChange={(e) => handleSliderChange(e, 'pan')}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  onChange={handleSliderChange}
+                  className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                 />
-              </div>
-
-              {/* Tilt Slider */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-headline font-bold text-slate-700">Y-Axis Tilt (0° - 180°)</span>
-                  <span className="font-mono font-bold text-emerald-700">{cameraControl.tilt_angle}°</span>
+                <div className="flex justify-between text-[10px] font-mono text-slate-400">
+                  <span>0° (Full Left)</span>
+                  <span>90° (Center)</span>
+                  <span>180° (Full Right)</span>
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="180"
-                  value={cameraControl.tilt_angle}
-                  onChange={(e) => handleSliderChange(e, 'tilt')}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                />
               </div>
 
-              <div className="pt-1 text-[11px] text-slate-500 font-mono">
+              <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500 font-mono">
                 Status: <strong className="text-slate-800">{lastActionStatus}</strong>
               </div>
             </div>
@@ -617,7 +576,132 @@ export default function LiveCameraPage() {
         </div>
       </section>
 
-      {/* Snapshot Confirmation Toast */}
+      {/* 5. FULLSCREEN LANDSCAPE VIEW MODAL WITH SIDE MOVEMENT BUTTONS */}
+      {isFullscreen && (
+        <div
+          ref={fullscreenContainerRef}
+          className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden animate-in fade-in"
+        >
+          {/* Fullscreen Video Canvas */}
+          <div className="relative w-full h-full flex items-center justify-center bg-black">
+            {hasLiveStream ? (
+              <video
+                ref={fullscreenVideoElementRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center text-white">
+                <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center mb-3">
+                  <VideoOff className="w-8 h-8 animate-pulse" />
+                </div>
+                <h3 className="font-headline text-xl font-bold text-white">
+                  The Camera is Not Working
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                  Live feed is currently offline. You can still rotate the camera using the side controls.
+                </p>
+              </div>
+            )}
+
+            {/* Top Overlay Bar */}
+            <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-30 pointer-events-auto">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20">
+                  <span className={`w-2 h-2 rounded-full ${hasLiveStream ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  <span className="font-headline text-xs font-bold">
+                    {hasLiveStream ? 'LIVE FEED' : 'CAMERA OFFLINE'}
+                  </span>
+                </div>
+                <span className="font-mono text-xs text-emerald-300 font-bold px-2 py-1 rounded bg-black/60 backdrop-blur-md">
+                  ANGLE: {cameraControl.pan_angle}°
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSnapshot}
+                  className="p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 active:scale-95 transition-all text-white"
+                  title="Capture Snapshot"
+                >
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeFullscreen}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white font-headline text-xs font-bold flex items-center gap-1 shadow-lg active:scale-95 transition-all"
+                  title="Exit Fullscreen"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Exit</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Floating Left Movement Button (Left side of screen) */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDirectionClick(-stepSize, 'pan_left')}
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
+                title="Pan Left"
+              >
+                <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
+                <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Left</span>
+              </button>
+            </div>
+
+            {/* Floating Right Movement Button (Right side of screen) */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDirectionClick(stepSize, 'pan_right')}
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/70 hover:bg-emerald-600 active:bg-emerald-700 text-white backdrop-blur-md border border-white/30 shadow-2xl flex flex-col items-center justify-center gap-1 active:scale-90 transition-all group"
+                title="Pan Right"
+              >
+                <ChevronRight className="w-8 h-8 group-hover:translate-x-1 transition-transform" />
+                <span className="font-headline text-[10px] uppercase font-bold tracking-wider">Right</span>
+              </button>
+            </div>
+
+            {/* Bottom Overlay Info & Center Button */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-center gap-3 text-white z-30 pointer-events-auto">
+              <button
+                type="button"
+                onClick={handleCenterPreset}
+                className="px-4 py-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 font-headline text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all text-slate-200"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Center (90°)</span>
+              </button>
+
+              <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/20">
+                <span className="text-[10px] text-slate-300 uppercase font-bold mr-1">Step:</span>
+                {[5, 10, 20].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => setStepSize(sz)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all ${
+                      stepSize === sz
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    ±{sz}°
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Snapshot Toast */}
       {showToast && (
         <div className="fixed bottom-20 left-4 right-4 z-50 p-3.5 bg-slate-900 text-white rounded-xl shadow-xl flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2">

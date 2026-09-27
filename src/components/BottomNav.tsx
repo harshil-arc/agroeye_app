@@ -8,9 +8,15 @@ import { Home, Video, Sun, ScanLine, User } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { detections } = useFarmData();
+  const { detections, cameraControl, setCameraMode } = useFarmData();
 
   const untreatedCount = detections.filter((d) => !d.isTreated).length;
+
+  const handleNavClick = (href: string) => {
+    if (!href.startsWith('/live') && cameraControl.mode === 'manual') {
+      setCameraMode('auto').catch(() => {});
+    }
+  };
 
   const navItems = [
     {
@@ -56,6 +62,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => handleNavClick(item.href)}
               className={`group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-all ${
                 item.isActive
                   ? 'text-emerald-700 font-bold'

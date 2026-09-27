@@ -20,17 +20,26 @@ import {
   RefreshCw,
   ImageIcon,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 
 export default function DetectionsPage() {
-  const { detections, triggerManualAlert, refreshFirebaseData, isLoadingDetections, setAutoOpenedDetection } = useFarmData();
+  const {
+    detections,
+    triggerManualAlert,
+    refreshFirebaseData,
+    isLoadingDetections,
+    setAutoOpenedDetection,
+    deleteDetection
+  } = useFarmData();
   const { t, lang } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [plotFilter, setPlotFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unhandled' | 'treated'>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -296,6 +305,39 @@ export default function DetectionsPage() {
                       <span>Diagnose</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
+
+                    {confirmDeleteId === item.id ? (
+                      <div className="flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg p-1 animate-in fade-in">
+                        <span className="text-[10px] text-rose-800 font-bold px-1">Delete?</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deleteDetection(item.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="h-7 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase transition-all"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="h-7 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(item.id)}
+                        className="h-9 px-2.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 border border-slate-200 text-slate-600 font-headline text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
+                        title="Delete Detection Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

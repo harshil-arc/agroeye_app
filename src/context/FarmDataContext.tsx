@@ -47,6 +47,7 @@ interface FarmDataContextType {
   setAutoOpenedDetection: (detection: AIDetection | null) => void;
   triggerManualAlert: (customImageUrl?: string, title?: string) => void;
   markDetectionTreated: (id: string) => void;
+  deleteDetection: (id: string) => Promise<void>;
   latestImageUrl: string;
   isStreamActive: boolean;
   setIsStreamActive: (active: boolean) => void;
@@ -386,17 +387,29 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
           // Build Historical Sensor Points for 24h/7d charts
           const historyPoints: HistoricalSensorPoint[] = sensorEntries
-            .slice(-48)
             .map((entry: any, i: number) => {
-              const t = entry.temperature ?? 32;
-              const sm = entry.soil_moisture ?? 79;
-              const rh = entry.humidity ?? 38;
+              const t = entry.temperature ?? 32.8;
+              const sm = entry.soil_moisture ?? entry.soilMoisture ?? 79;
+              const rh = entry.humidity ?? 37.5;
               const mq = entry.mq135_raw ?? 330;
               const aqi = Math.round(Math.min(300, Math.max(15, (mq / 1024) * 120)));
-              const timeStr = entry.datetime ? entry.datetime.split(' ')[1] || `T-${i}` : `Point ${i + 1}`;
+              
+              let parsedTimestamp = Date.now() - (sensorEntries.length - 1 - i) * 1800000;
+              let timeStr = `T-${sensorEntries.length - i}`;
+              if (entry.timestamp) {
+                parsedTimestamp = typeof entry.timestamp === 'number' ? entry.timestamp : new Date(entry.timestamp).getTime();
+              } else if (entry.datetime) {
+                try {
+                  const d = new Date(entry.datetime.replace(' ', 'T'));
+                  if (!isNaN(d.getTime())) parsedTimestamp = d.getTime();
+                } catch {}
+              }
+              const d = new Date(parsedTimestamp);
+              timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
               return {
                 time: timeStr,
-                timestamp: entry.timestamp || Date.now() - (sensorEntries.length - i) * 600000,
+                timestamp: parsedTimestamp,
                 temperature: +t.toFixed(1),
                 soilMoisture: Math.round(sm),
                 humidity: +rh.toFixed(1),
@@ -439,7 +452,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             mq135Voltage: voltMq,
             pm25: Math.round(aqiEst * 0.35),
             airQualityStatus: aqiEst > 100 ? 'Moderate' : 'Good',
-            source: latestReading.source || 'esp32_serial',
+            source: latestReading.source || 'field_node_serial',
             datetime: latestReading.datetime || 'Live',
             solarRadiation: 780,
             uvIndex: 7,
@@ -454,7 +467,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('agroeye_offline_sensors', JSON.stringify(updatedSensors));
 
           const syncTime = latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now';
-          setLastUpdated(`ESP32 Live • ${syncTime}`);
+          setLastUpdated(`Live Synced • ${syncTime}`);
           setLastUpdatedTimestamp(Date.now());
         }
       }
@@ -558,13 +571,32 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
               mq135Voltage: latestReading.mq135_voltage,
               airQualityAqi: aqiEst,
               pm25: Math.round(aqiEst * 0.35),
-              source: latestReading.source || 'esp32_serial',
+              source: latestReading.source || 'field_node_serial',
               datetime: latestReading.datetime,
               timestamp: latestReading.datetime || new Date().toISOString(),
             }));
 
+            // Append live point to sensor history in real-time
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            setSensorHistory((prevHistory) => {
+              const newPoint: HistoricalSensorPoint = {
+                time: timeStr,
+                timestamp: Date.now(),
+                temperature: +temp.toFixed(1),
+                soilMoisture: Math.round(moist),
+                humidity: +humid.toFixed(1),
+                aqi: aqiEst,
+              };
+              const updated = [...prevHistory.slice(-47), newPoint];
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('agroeye_offline_sensor_history', JSON.stringify(updated));
+              }
+              return updated;
+            });
+
             const syncTime = latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now';
-            setLastUpdated(`ESP32 Live • ${syncTime}`);
+            setLastUpdated(`Live Synced • ${syncTime}`);
             setLastUpdatedTimestamp(Date.now());
           }
         }
@@ -654,6 +686,35 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const deleteDetection = useCallback(async (id: string) => {
+    // Update local state and offline cache
+    setDetections((prev) => {
+      const updated = prev.filter((d) => d.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('agroeye_offline_detections', JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    setAutoOpenedDetection((prev) => (prev?.id === id ? null : prev));
+
+    // Delete from Firebase RTDB if configured
+    const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
+    try {
+      fetch(`${dbUrl}/disease_alerts/${id}.json`, {
+        method: 'DELETE',
+      }).catch(() => {});
+    } catch {}
+
+    const { db } = getFirebaseInstance(firebaseConfig);
+    if (db) {
+      try {
+        const { remove } = await import('firebase/database');
+        remove(ref(db, `disease_alerts/${id}`)).catch(() => {});
+      } catch {}
+    }
+  }, [firebaseConfig]);
+
   // Compute Active Threshold Alerts
   const thresholdAlerts: ThresholdAlert[] = [];
   if (sensors.soilMoisture < 45 && !dismissedAlerts['soil_dry']) {
@@ -727,6 +788,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         setAutoOpenedDetection,
         triggerManualAlert,
         markDetectionTreated,
+        deleteDetection,
         latestImageUrl,
         isStreamActive,
         setIsStreamActive,

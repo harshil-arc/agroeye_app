@@ -21,15 +21,17 @@ import {
   Sparkles,
   Plane,
   Check,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 
 export default function DetectionDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { detections, markDetectionTreated, isLoadingDetections } = useFarmData();
+  const { detections, markDetectionTreated, deleteDetection, isLoadingDetections } = useFarmData();
   const [isTreated, setIsTreated] = useState<boolean>(false);
   const [showDroneSuccess, setShowDroneSuccess] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const detectionId = params?.id as string;
   const detection = detections.find((d) => d.id === detectionId || d.code.replace('#', '') === detectionId) || (detections.length > 0 ? detections[0] : null);
@@ -38,6 +40,13 @@ export default function DetectionDetailPage() {
     if (!detection) return;
     setIsTreated(true);
     markDetectionTreated(detection.id);
+  };
+
+  const handleDelete = async () => {
+    if (!detection) return;
+    setIsDeleting(true);
+    await deleteDetection(detection.id);
+    router.push('/detections');
   };
 
   const handleScheduleDrone = () => {
@@ -332,6 +341,17 @@ export default function DetectionDetailPage() {
         >
           <Plane className="w-4 h-4 text-emerald-400" />
           <span>Schedule Spray Drone</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="w-full sm:w-auto h-12 px-4 rounded-xl bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 border border-slate-200 text-slate-700 font-headline text-xs uppercase font-bold tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm flex-shrink-0"
+          title="Delete this detection record"
+        >
+          <Trash2 className="w-4 h-4 text-rose-500" />
+          <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
         </button>
       </div>
     </div>
