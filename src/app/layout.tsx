@@ -6,6 +6,7 @@ import { FarmDataProvider } from '@/context/FarmDataContext';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import DetectionModal from '@/components/DetectionModal';
+import AppShell from '@/components/AppShell';
 
 export const metadata: Metadata = {
   title: 'AgroEye • Precision Smart Farming Platform',
@@ -45,12 +46,7 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <FarmDataProvider>
-              <Header />
-              <main className="flex-1 flex flex-col relative w-full pt-16 pb-24 max-w-7xl mx-auto">
-                {children}
-              </main>
-              <BottomNav />
-              <DetectionModal />
+              <AppShell>{children}</AppShell>
             </FarmDataProvider>
           </AuthProvider>
         </LanguageProvider>

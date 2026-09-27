@@ -10,6 +10,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { detections, cameraControl, setCameraMode } = useFarmData();
 
+  if (pathname === '/login') return null;
+
   const untreatedCount = detections.filter((d) => !d.isTreated).length;
 
   const handleNavClick = (href: string) => {

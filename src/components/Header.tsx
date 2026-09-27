@@ -50,6 +50,8 @@ export default function Header() {
 
   const activePlot = plots.find((p) => p.id === selectedPlot) || plots[0];
 
+  if (pathname === '/login') return null;
+
   return (
     <>
       <header className="fixed top-0 w-full z-40 pt-safe bg-white/95 backdrop-blur-xl border-b border-slate-200/80 shadow-sm">

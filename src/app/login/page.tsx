@@ -19,13 +19,14 @@ import {
   ShieldCheck,
   AlertCircle,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Globe
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { loginWithEmail, registerWithEmail, isAuthenticated, userProfile } = useAuth();
-  const { lang, t } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -106,6 +107,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[85vh] flex flex-col justify-center px-4 py-8 max-w-md mx-auto w-full">
+      {/* Top Language Toggle */}
+      <div className="flex justify-end mb-2">
+        <button
+          type="button"
+          onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+          className="h-8 px-3 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-headline text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95"
+        >
+          <Globe className="w-3.5 h-3.5 text-emerald-600" />
+          <span>{lang === 'en' ? 'हिंदी में बदलें' : 'Switch to English'}</span>
+        </button>
+      </div>
+
       {/* Brand Header */}
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600 text-white text-2xl shadow-md mb-3 ring-4 ring-emerald-100">
