@@ -333,66 +333,43 @@ export default function LiveCameraPage() {
           ref={videoViewportRef}
           className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5"
         >
-          {/* Active Live Video Track */}
+          {/* Active Live Video Track (Always mounted to immediately receive incoming frames) */}
           <video
             ref={videoElementRef}
             autoPlay
             playsInline
             muted
-            className={`w-full aspect-[16/10] sm:aspect-video object-cover transition-all ${
-              hasLiveStream ? 'block' : 'hidden'
-            }`}
+            className="w-full aspect-[16/10] sm:aspect-video object-cover bg-slate-950 block"
           />
 
-          {/* Camera Snapshot / Live Standby Screen */}
+          {/* Live Video Connecting / Standby Overlay (Only shown while negotiating stream) */}
           {!hasLiveStream && (
-            <div className="relative w-full aspect-[16/10] sm:aspect-video bg-slate-950">
-              <img
-                src={latestImageUrl}
-                alt="Latest Farm Camera Snapshot"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none" />
-
-              {/* Snapshot HUD Reticle Overlay */}
-              <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none" />
-              <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none" />
-              <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none" />
-              <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none" />
-
-              {/* Top HUD Indicators */}
-              <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none">
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow">
-                      FARM CAMERA SNAPSHOT • INGEST ACTIVE
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
-                    <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
-                      MODE: {cameraControl.mode.toUpperCase()}
-                    </span>
-                    <span className="font-mono text-[10px] text-emerald-300 font-bold">
-                      PAN: {cameraControl.pan_angle}°
-                    </span>
-                  </div>
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white z-10">
+              <div className="relative mb-3 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg animate-pulse">
+                  <Video className="w-7 h-7" />
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={startStream}
-                    className="pointer-events-auto px-2.5 py-1 bg-black/60 hover:bg-black/80 text-white rounded-lg border border-white/20 font-headline text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95"
-                  >
-                    <RefreshCw className={`w-3 h-3 text-emerald-400 ${isRetryingStream ? 'animate-spin' : ''}`} />
-                    <span>{isRetryingStream ? 'Connecting...' : 'Connect Video Stream'}</span>
-                  </button>
-                </div>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-ping" />
               </div>
+
+              <h3 className="font-headline text-base sm:text-lg font-bold text-white tracking-tight">
+                {isRetryingStream ? 'Establishing Live Video Stream...' : 'Live Optical Feed Standby'}
+              </h3>
+
+              <p className="text-xs text-slate-300 mt-1 max-w-sm leading-relaxed">
+                {lang === 'hi'
+                  ? 'लाइव वीडियो फ़ीड से कनेक्ट हो रहा है (CAM #01 • 1080p कम लेटेंसी)।'
+                  : 'Connecting to field optical camera node (CAM #01 • 1080p Ultra-low latency).'}
+              </p>
+
+              <button
+                type="button"
+                onClick={startStream}
+                className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-md"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
+                <span>{isRetryingStream ? 'Connecting Video Feed...' : 'Start Live Video Stream'}</span>
+              </button>
             </div>
           )}
 
@@ -644,16 +621,21 @@ export default function LiveCameraPage() {
                 muted
                 className="w-full h-full object-contain"
               />
-            ) : (
-              <div className="relative w-full h-full flex items-center justify-center bg-black">
-                <img
-                  src={latestImageUrl}
-                  alt="Fullscreen Camera Snapshot"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
-                  }}
-                />
+            ) : null}
+            {!hasLiveStream && (
+              <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+                <Video className="w-12 h-12 text-emerald-400 animate-pulse mb-3" />
+                <h3 className="font-headline text-lg font-bold">Connecting Live Stream...</h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                  Negotiating real-time video feed with optical camera node.
+                </p>
+                <button
+                  type="button"
+                  onClick={startStream}
+                  className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                >
+                  Retry Connection
+                </button>
               </div>
             )}
 
