@@ -175,8 +175,13 @@ export class WebRTCStreamClient {
       };
 
       const transceiver = this.pc.addTransceiver('video', { direction: 'recvonly' });
-      if (transceiver.receiver && (transceiver.receiver as any).playoutDelayHint !== undefined) {
-        (transceiver.receiver as any).playoutDelayHint = 0; // Ultra-low latency playback
+      if (transceiver.receiver) {
+        if ('playoutDelayHint' in transceiver.receiver) {
+          (transceiver.receiver as any).playoutDelayHint = 0; // Ultra-low latency W3C flag
+        }
+        if ('jitterBufferTarget' in transceiver.receiver) {
+          (transceiver.receiver as any).jitterBufferTarget = 0; // Chromium zero-delay jitter buffer
+        }
       }
 
       const offer = await this.pc.createOffer({
@@ -184,10 +189,14 @@ export class WebRTCStreamClient {
         offerToReceiveAudio: false,
       });
 
-      // Optimize SDP for low latency
+      // Optimize SDP for sub-100ms ultra-low latency streaming
       let sdp = offer.sdp || '';
       if (!sdp.includes('b=AS:')) {
-        sdp = sdp.replace(/c=IN IP4 (.*?)\r\n/g, 'c=IN IP4 $1\r\nb=AS:2500\r\n');
+        sdp = sdp.replace(/c=IN IP4 (.*?)\r\n/g, 'c=IN IP4 $1\r\nb=AS:3500\r\n');
+      }
+      // Add zero-delay playout extension if supported
+      if (!sdp.includes('playout-delay')) {
+        sdp = sdp.replace(/(m=video .*\r\n)/g, '$1a=extmap:5 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\n');
       }
 
       await this.pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp }));

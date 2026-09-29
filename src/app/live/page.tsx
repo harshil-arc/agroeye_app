@@ -121,14 +121,17 @@ export default function LiveCameraPage() {
         setHasLiveStream(true);
         setStreamMedia(stream);
         setIsRetryingStream(false);
-        if (videoElementRef.current) {
-          videoElementRef.current.srcObject = stream;
-          videoElementRef.current.play().catch(() => {});
-        }
-        if (fullscreenVideoElementRef.current) {
-          fullscreenVideoElementRef.current.srcObject = stream;
-          fullscreenVideoElementRef.current.play().catch(() => {});
-        }
+        const bindVideo = (vid: HTMLVideoElement | null) => {
+          if (vid) {
+            vid.srcObject = stream;
+            vid.playbackRate = 1.0;
+            vid.playsInline = true;
+            (vid as any).disablePictureInPicture = true;
+            vid.play().catch(() => {});
+          }
+        };
+        bindVideo(videoElementRef.current);
+        bindVideo(fullscreenVideoElementRef.current);
       },
       onStatsUpdate: (stats) => {
         setStreamStats(stats);
@@ -267,6 +270,9 @@ export default function LiveCameraPage() {
   const openFullscreen = () => {
     setIsFullscreen(true);
     try {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = 'hidden';
+      }
       if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
@@ -279,6 +285,9 @@ export default function LiveCameraPage() {
   const closeFullscreen = () => {
     setIsFullscreen(false);
     try {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
       }
@@ -609,7 +618,7 @@ export default function LiveCameraPage() {
       {isFullscreen && (
         <div
           ref={fullscreenContainerRef}
-          className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden animate-in fade-in"
+          className="fixed inset-0 z-[99999] bg-black flex flex-col justify-between overflow-hidden animate-in fade-in"
         >
           {/* Fullscreen Video Canvas */}
           <div className="relative w-full h-full flex items-center justify-center bg-black">
