@@ -759,6 +759,17 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
+      const cameraFeedRef = ref(db, 'camera_feed');
+      const unsubFeed = onValue(cameraFeedRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const img = normalizeImageSource(data.image || data.photo_url || data.url || data);
+          if (img && img !== DEFAULT_FALLBACK_IMAGE) {
+            setLatestImageUrl(img);
+          }
+        }
+      });
+
       const unsubLive = onValue(liveStatusRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -788,6 +799,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         off(snapshotsRef);
         off(sensorRef);
         off(liveStatusRef);
+        off(cameraFeedRef);
         off(cameraControlRef);
       };
     } catch (err) {

@@ -28,21 +28,25 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com:3478' },
     {
-      urls: 'turn:openrelay.metered.ca:80',
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp'
+      ],
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
     {
-      urls: 'turn:openrelay.metered.ca:443',
+      urls: [
+        'turn:standard.relay.metered.ca:80',
+        'turn:standard.relay.metered.ca:443',
+        'turn:standard.relay.metered.ca:443?transport=tcp'
+      ],
       username: 'openrelayproject',
       credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
+    }
   ],
   iceCandidatePoolSize: 4,
   bundlePolicy: 'max-bundle',
@@ -61,6 +65,7 @@ export class WebRTCStreamClient {
   private piCandidatesUnsub: (() => void) | null = null;
   private statsInterval: NodeJS.Timeout | null = null;
   private connectionTimeout: NodeJS.Timeout | null = null;
+  private autoRetryTimeout: NodeJS.Timeout | null = null;
   private processedPiCandidates: Set<string> = new Set();
   private pendingRemoteCandidates: RTCIceCandidateInit[] = [];
   private prevBytesReceived = 0;
@@ -106,37 +111,43 @@ export class WebRTCStreamClient {
     this.processedPiCandidates.clear();
     this.pendingRemoteCandidates = [];
 
-    // Timeout: If Pi doesn't answer SDP within 8s, fail gracefully and show snapshot
+    // Timeout & graceful auto-retry if Pi doesn't answer within 8s
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.pc && this.pc.connectionState !== 'connected') {
-        console.log('[WebRTC] Connection negotiation timed out (Pi in standby). Switching to snapshot preview.');
         this.isConnecting = false;
         this.onStatsCallback?.({
           fps: 0,
           bitrateKbps: 0,
           latencyMs: 0,
-          resolution: 'Standby / Snapshot',
+          resolution: 'Standby / Live Ingest',
           connectionState: 'timeout',
           iceState: 'idle',
           isRelayed: false,
         });
+        this.scheduleAutoRetry(7000);
       }
     }, 8000);
 
     try {
-      // 1. Clear old signaling nodes BEFORE starting new ICE candidate gathering
+      // 1. Clear old signaling nodes
       await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
       await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
       await set(ref(this.db, `${this.sessionPath}/answer`), null);
 
-      // 2. Initialize PeerConnection with optimized ICE configuration
+      // 2. Initialize PeerConnection with standard WebRTC configuration
       this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
 
       this.pc.ontrack = (event) => {
         if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
-        if (event.streams && event.streams[0]) {
-          this.onStreamCallback(event.streams[0]);
+        if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
+        
+        const stream = (event.streams && event.streams[0]) 
+          ? event.streams[0] 
+          : (event.track ? new MediaStream([event.track]) : null);
+
+        if (stream) {
+          this.onStreamCallback(stream);
         }
       };
 
@@ -157,9 +168,13 @@ export class WebRTCStreamClient {
         const state = this.pc.connectionState;
         if (state === 'connected') {
           if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
+          if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
           this.isConnecting = false;
-        } else if (state === 'failed' || state === 'closed') {
+        } else if (state === 'failed' || state === 'closed' || state === 'disconnected') {
           this.isConnecting = false;
+          if (!this.isManuallyStopped) {
+            this.scheduleAutoRetry(5000);
+          }
         }
         this.emitStats();
       };
@@ -168,7 +183,11 @@ export class WebRTCStreamClient {
         if (!this.pc) return;
         if (this.pc.iceConnectionState === 'failed' || this.pc.iceConnectionState === 'disconnected') {
           if (!this.isManuallyStopped) {
-            this.pc.restartIce();
+            try {
+              this.pc.restartIce();
+            } catch (e) {
+              this.scheduleAutoRetry(4000);
+            }
           }
         }
         this.emitStats();
@@ -177,10 +196,10 @@ export class WebRTCStreamClient {
       const transceiver = this.pc.addTransceiver('video', { direction: 'recvonly' });
       if (transceiver.receiver) {
         if ('playoutDelayHint' in transceiver.receiver) {
-          (transceiver.receiver as any).playoutDelayHint = 0; // Ultra-low latency W3C flag
+          (transceiver.receiver as any).playoutDelayHint = 0;
         }
         if ('jitterBufferTarget' in transceiver.receiver) {
-          (transceiver.receiver as any).jitterBufferTarget = 0; // Chromium zero-delay jitter buffer
+          (transceiver.receiver as any).jitterBufferTarget = 0;
         }
       }
 
@@ -189,19 +208,9 @@ export class WebRTCStreamClient {
         offerToReceiveAudio: false,
       });
 
-      // Optimize SDP for sub-100ms ultra-low latency streaming
-      let sdp = offer.sdp || '';
-      if (!sdp.includes('b=AS:')) {
-        sdp = sdp.replace(/c=IN IP4 (.*?)\r\n/g, 'c=IN IP4 $1\r\nb=AS:3500\r\n');
-      }
-      // Add zero-delay playout extension if supported
-      if (!sdp.includes('playout-delay')) {
-        sdp = sdp.replace(/(m=video .*\r\n)/g, '$1a=extmap:5 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\n');
-      }
+      await this.pc.setLocalDescription(offer);
 
-      await this.pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp }));
-
-      // Wait briefly for initial ICE candidates to be gathered
+      // Wait briefly for initial candidates
       await new Promise<void>((resolve) => {
         if (!this.pc || this.pc.iceGatheringState === 'complete') {
           resolve();
@@ -220,12 +229,12 @@ export class WebRTCStreamClient {
         }, 1000);
       });
 
-      const fullLocalSdp = this.pc.localDescription?.sdp || sdp;
+      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
       const offerPayload = {
         sdp: fullLocalSdp,
         type: 'offer',
         timestamp: Date.now(),
-        client: 'Farmer Mobile App',
+        client: 'AgroEye Web Client',
       };
 
       // 3. Write Offer payload to Firebase
@@ -244,7 +253,7 @@ export class WebRTCStreamClient {
               })
             );
 
-            // Flush pending remote ICE candidates now that remote description is set
+            // Flush pending remote ICE candidates
             while (this.pendingRemoteCandidates.length > 0) {
               const pendingCand = this.pendingRemoteCandidates.shift();
               if (pendingCand && this.pc) {
@@ -280,7 +289,6 @@ export class WebRTCStreamClient {
               sdpMLineIndex: cand.sdpMLineIndex ?? 0,
             };
 
-            // If remote description isn't set yet, queue the candidate
             if (!this.pc.remoteDescription || !this.pc.remoteDescription.type) {
               this.pendingRemoteCandidates.push(candInit);
             } else {
@@ -298,7 +306,21 @@ export class WebRTCStreamClient {
     } catch (error: any) {
       this.isConnecting = false;
       this.onErrorCallback?.(error);
+      if (!this.isManuallyStopped) {
+        this.scheduleAutoRetry(6000);
+      }
     }
+  }
+
+  private scheduleAutoRetry(delayMs: number) {
+    if (this.isManuallyStopped) return;
+    if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
+    this.autoRetryTimeout = setTimeout(() => {
+      if (!this.isManuallyStopped && (!this.pc || this.pc.connectionState !== 'connected')) {
+        console.log('[WebRTC] Auto-reconnecting live stream...');
+        this.start().catch(() => {});
+      }
+    }, delayMs);
   }
 
   private startStatsLoop() {
@@ -358,6 +380,10 @@ export class WebRTCStreamClient {
     if (this.connectionTimeout) {
       clearTimeout(this.connectionTimeout);
       this.connectionTimeout = null;
+    }
+    if (this.autoRetryTimeout) {
+      clearTimeout(this.autoRetryTimeout);
+      this.autoRetryTimeout = null;
     }
     if (this.statsInterval) {
       clearInterval(this.statsInterval);
