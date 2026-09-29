@@ -493,10 +493,6 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         if (parsedList.length > 0) {
           const newest = parsedList[0];
           setLatestImageUrl(newest.imageUrl);
-
-          if (previousLatestKeyRef.current && previousLatestKeyRef.current !== newest.id) {
-            setAutoOpenedDetection(newest);
-          }
           previousLatestKeyRef.current = newest.id;
         }
       }
@@ -696,10 +692,6 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           if (parsedList.length > 0) {
             const newest = parsedList[0];
             setLatestImageUrl(newest.imageUrl);
-
-            if (previousLatestKeyRef.current && previousLatestKeyRef.current !== newest.id) {
-              setAutoOpenedDetection(newest);
-            }
             previousLatestKeyRef.current = newest.id;
           }
         }
@@ -850,7 +842,6 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
     setLatestImageUrl(img);
     setDetections((prev) => [newDetection, ...prev]);
-    setAutoOpenedDetection(newDetection);
   }, [sensors, latestImageUrl]);
 
   const markDetectionTreated = (id: string) => {

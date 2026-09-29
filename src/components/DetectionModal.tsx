@@ -16,12 +16,12 @@ export default function DetectionModal() {
         {/* Header Alert Bar */}
         <div className="px-4 py-3 bg-amber-500 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 animate-bounce" />
+            <ShieldAlert className="w-5 h-5" />
             <div>
               <span className="font-headline text-xs font-bold uppercase tracking-wider block">
-                Automatic Anomaly Ingestion
+                Anomaly Inspection
               </span>
-              <span className="text-[11px] text-amber-100">Live feed from Edge Camera • iilo Ingest</span>
+              <span className="text-[11px] text-amber-100">Live feed from Edge Camera • Snapshot Detail</span>
             </div>
           </div>
           <button
