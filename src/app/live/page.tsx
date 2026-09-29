@@ -70,11 +70,21 @@ export default function LiveCameraPage() {
     isRelayed: false,
   });
 
-  // Keep a ref of cameraControl to prevent stale closure in unmount cleanup without triggering re-runs
+  // Keep refs to prevent stale closures and avoid re-triggering unmount cleanup on re-renders
   const cameraControlRef = useRef(cameraControl);
   useEffect(() => {
     cameraControlRef.current = cameraControl;
   }, [cameraControl]);
+
+  const setCameraModeRef = useRef(setCameraMode);
+  useEffect(() => {
+    setCameraModeRef.current = setCameraMode;
+  }, [setCameraMode]);
+
+  const firebaseConfigRef = useRef(firebaseConfig);
+  useEffect(() => {
+    firebaseConfigRef.current = firebaseConfig;
+  }, [firebaseConfig]);
 
   // Live timestamp clock update
   useEffect(() => {
@@ -162,26 +172,14 @@ export default function LiveCameraPage() {
     }
   }, [isFullscreen, streamMedia]);
 
-  // Automatic reset to Auto Mode ONLY on actual page unmount / tab switch / page exit
+  // Automatic reset to Auto Mode strictly on component unmount (when user navigates away from Live tab)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && cameraControlRef.current.mode === 'manual') {
-        setCameraMode('auto').catch(() => {});
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pagehide', handleVisibilityChange);
-
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pagehide', handleVisibilityChange);
-
       if (cameraControlRef.current.mode === 'manual') {
-        setCameraMode('auto').catch(() => {});
+        setCameraModeRef.current('auto').catch(() => {});
       }
 
-      const dbUrl = (firebaseConfig.databaseURL || 'https://sample-629de-default-rtdb.firebaseio.com').replace(/\/$/, '');
+      const dbUrl = (firebaseConfigRef.current.databaseURL || 'https://sample-629de-default-rtdb.firebaseio.com').replace(/\/$/, '');
       const resetPayload = JSON.stringify({
         mode: 'auto',
         pan_angle: 90,
@@ -210,7 +208,7 @@ export default function LiveCameraPage() {
         console.warn('Auto mode reset on exit notice:', err);
       }
     };
-  }, [setCameraMode, firebaseConfig]);
+  }, []);
 
   const handleModeToggle = async (newMode: 'auto' | 'manual') => {
     if (newMode === 'manual' && !isAuthenticated) {

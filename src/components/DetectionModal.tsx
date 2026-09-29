@@ -41,6 +41,9 @@ export default function DetectionModal() {
               src={autoOpenedDetection.imageUrl}
               alt={autoOpenedDetection.title}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
+              }}
             />
             {/* Dark gradient for HUD contrast */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 pointer-events-none" />

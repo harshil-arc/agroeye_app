@@ -209,7 +209,7 @@ export default function DetectionsPage() {
                   alt={item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
-                    (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
+                    (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
                   }}
                 />
                 <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-white font-headline text-[10px] font-bold">

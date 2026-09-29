@@ -611,7 +611,7 @@ export default function HomePage() {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 src={recentDetection.imageUrl}
                 onError={(e) => {
-                  (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
+                  (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
                 }}
               />
               <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 text-white font-headline text-[10px] font-bold">
@@ -681,7 +681,7 @@ export default function HomePage() {
               className="w-full h-full object-cover"
               src={latestImageUrl}
               onError={(e) => {
-                (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nAclGhg.jpg');
+                (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
               }}
             />
             {/* Live Camera HUD Overlays */}

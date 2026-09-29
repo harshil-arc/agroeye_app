@@ -135,7 +135,7 @@ export default function DetectionDetailPage() {
         </div>
       </div>
 
-      {/* 2. Primary Real Image Canvas from Firebase (iili.io) */}
+      {/* 2. Primary Real Image Canvas from Firebase */}
       <div className="px-4 mb-4">
         <div className="relative w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md border border-slate-200">
           <img
@@ -143,7 +143,7 @@ export default function DetectionDetailPage() {
             alt={detection.title}
             className="w-full h-80 sm:h-[450px] object-cover block"
             onError={(e) => {
-              (e.target as HTMLElement).setAttribute('src', 'https://iili.io/nuiqbzg.jpg');
+              (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
             }}
           />
 

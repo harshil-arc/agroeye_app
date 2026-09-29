@@ -97,6 +97,74 @@ function formatTimeAgo(dateInput: string | number | undefined): string {
   }
 }
 
+export const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80';
+
+// Universal parser for incoming images from Firebase (handles URLs, Base64 with/without MIME prefixes, and alternative keys)
+export function normalizeImageSource(raw: any): string {
+  if (!raw) return DEFAULT_FALLBACK_IMAGE;
+
+  let val = typeof raw === 'string' ? raw.trim() : '';
+
+  if (typeof raw === 'object' && raw !== null) {
+    val = (
+      raw.photo_url ||
+      raw.photoUrl ||
+      raw.image_url ||
+      raw.imageUrl ||
+      raw.image ||
+      raw.img ||
+      raw.photo ||
+      raw.frame ||
+      raw.image_base64 ||
+      raw.imageBase64 ||
+      raw.base64 ||
+      raw.picture ||
+      raw.url ||
+      raw.file_url ||
+      raw.captured_image ||
+      raw.snapshot ||
+      raw.image_data ||
+      raw.imageData ||
+      raw.img_url ||
+      raw.latest_photo_url ||
+      raw.latest_image ||
+      raw.latest_photo ||
+      raw.raw_image ||
+      ''
+    ).toString().trim();
+  }
+
+  if (!val) return DEFAULT_FALLBACK_IMAGE;
+
+  // Prepend correct Data URI prefix if raw base64 string is provided without header
+  if (val.startsWith('/9j/') || val.startsWith('iVBORw0KGgo') || val.startsWith('R0lGOD') || val.startsWith('UklGR')) {
+    const mime = val.startsWith('iVBORw0KGgo') ? 'image/png' : val.startsWith('R0lGOD') ? 'image/gif' : val.startsWith('UklGR') ? 'image/webp' : 'image/jpeg';
+    return `data:${mime};base64,${val}`;
+  }
+
+  // If it is already a full URL or Data URI, return as-is
+  if (
+    val.startsWith('http://') ||
+    val.startsWith('https://') ||
+    val.startsWith('data:image/') ||
+    val.startsWith('blob:') ||
+    val.startsWith('/')
+  ) {
+    return val;
+  }
+
+  if (val.includes('base64,')) {
+    return val;
+  }
+
+  // Fallback check for raw Base64 payloads
+  if (val.length > 100 && /^[A-Za-z0-9+/=]+$/.test(val.slice(0, 100))) {
+    return `data:image/jpeg;base64,${val}`;
+  }
+
+  return val || DEFAULT_FALLBACK_IMAGE;
+}
+
 // Vapor Pressure Deficit calculation
 function calculateVPD(temp: number, rh: number): number {
   if (!temp || !rh) return 1.2;
@@ -108,14 +176,11 @@ function calculateVPD(temp: number, rh: number): number {
 // Transform raw Firebase detection into standard AIDetection
 function transformFirebaseAlert(key: string, raw: any, index: number): AIDetection {
   const isAnimal = !!raw.animal_name || !!raw.species_breakdown;
-  const name = raw.disease_name || raw.animal_name || 'Detected Anomaly';
+  const name = raw.disease_name || raw.animal_name || raw.title || raw.label || raw.class_name || 'Detected Anomaly';
   const rawConf = typeof raw.confidence === 'number' ? raw.confidence : parseFloat(raw.confidence) || 0.85;
   const confidence = rawConf <= 1 ? +(rawConf * 100).toFixed(1) : +rawConf.toFixed(1);
-  let photoUrl = raw.photo_url || raw.imageUrl || raw.image_url || 'https://iili.io/nuiqbzg.jpg';
-  if (photoUrl.includes('nAc')) {
-    photoUrl = 'https://iili.io/nuiqbzg.jpg';
-  }
-  const timeRaw = raw.timestamp || raw.datetime || new Date().toISOString();
+  const photoUrl = normalizeImageSource(raw);
+  const timeRaw = raw.timestamp || raw.datetime || raw.date || new Date().toISOString();
 
   let category: AIDetection['category'] = 'disease';
   let categoryLabel = 'Disease';
@@ -258,7 +323,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
   const [lastUpdatedTimestamp, setLastUpdatedTimestamp] = useState<number>(Date.now());
   const [firebaseConnected, setFirebaseConnected] = useState<boolean>(true);
   const [autoOpenedDetection, setAutoOpenedDetection] = useState<AIDetection | null>(null);
-  const [latestImageUrl, setLatestImageUrl] = useState<string>('https://iili.io/nuiqbzg.jpg');
+  const [latestImageUrl, setLatestImageUrl] = useState<string>(DEFAULT_FALLBACK_IMAGE);
   const [isStreamActive, setIsStreamActive] = useState<boolean>(true);
   const [isNightVision, setIsNightVision] = useState<boolean>(false);
   const [isLoadingDetections, setIsLoadingDetections] = useState<boolean>(true);
@@ -389,10 +454,11 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       setFirebaseConnected(true);
 
-      // 1. Process real disease_alerts from Firebase
-      if (data.disease_alerts && typeof data.disease_alerts === 'object') {
+      // 1. Process real alerts/detections from Firebase (supports disease_alerts, detections, alerts, etc.)
+      const rawAlerts = data.disease_alerts || data.detections || data.alerts || data.crop_alerts || data.yolo_detections || data.ai_detections;
+      if (rawAlerts && typeof rawAlerts === 'object') {
         const currentDeleted = deletedDetectionIdsRef.current;
-        const entries = Object.entries(data.disease_alerts);
+        const entries = Object.entries(rawAlerts);
         const parsedList: AIDetection[] = entries
           .filter(([key]) => !currentDeleted.includes(key))
           .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
@@ -411,6 +477,21 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             setAutoOpenedDetection(newest);
           }
           previousLatestKeyRef.current = newest.id;
+        }
+      }
+
+      // Check for direct live camera image snapshot in root or live_status node
+      const liveImgCandidate = data.live_status?.latest_photo_url ||
+        data.live_status?.image ||
+        data.live_status?.photo_url ||
+        data.latest_photo_url ||
+        data.latest_image ||
+        data.camera_feed?.image ||
+        data.camera_snapshot;
+      if (liveImgCandidate) {
+        const normalizedLive = normalizeImageSource(liveImgCandidate);
+        if (normalizedLive && normalizedLive !== DEFAULT_FALLBACK_IMAGE) {
+          setLatestImageUrl(normalizedLive);
         }
       }
 
@@ -526,14 +607,16 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 4. Process camera_control if present
+      // 4. Process camera_control if present (sync hardware angles without overriding user's active mode)
       if (data.camera_control && typeof data.camera_control === 'object') {
-        if (Date.now() - lastUserCameraActionRef.current > 3000) {
-          setCameraControl((prev) => ({
-            ...prev,
-            ...data.camera_control,
-          }));
-        }
+        setCameraControl((prev) => ({
+          ...prev,
+          pan_angle: typeof data.camera_control.pan_angle === 'number' ? data.camera_control.pan_angle : prev.pan_angle,
+          tilt_angle: typeof data.camera_control.tilt_angle === 'number' ? data.camera_control.tilt_angle : prev.tilt_angle,
+          x_coord: typeof data.camera_control.x_coord === 'number' ? data.camera_control.x_coord : prev.x_coord,
+          y_coord: typeof data.camera_control.y_coord === 'number' ? data.camera_control.y_coord : prev.y_coord,
+          last_updated: data.camera_control.last_updated || prev.last_updated,
+        }));
       }
     } catch (err) {
       console.warn('Firebase sync notice (offline mode available):', err);
@@ -643,20 +726,25 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       const unsubLive = onValue(liveStatusRef, (snapshot) => {
         const data = snapshot.val();
-        if (data && data.latest_photo_url) {
-          setLatestImageUrl(data.latest_photo_url);
+        if (data) {
+          const img = normalizeImageSource(data.latest_photo_url || data.image || data.photo_url || data);
+          if (img && img !== DEFAULT_FALLBACK_IMAGE) {
+            setLatestImageUrl(img);
+          }
         }
       });
 
       const unsubCamera = onValue(cameraControlRef, (snapshot) => {
         const data = snapshot.val();
         if (data && typeof data === 'object') {
-          if (Date.now() - lastUserCameraActionRef.current > 3000) {
-            setCameraControl((prev) => ({
-              ...prev,
-              ...data,
-            }));
-          }
+          setCameraControl((prev) => ({
+            ...prev,
+            pan_angle: typeof data.pan_angle === 'number' ? data.pan_angle : prev.pan_angle,
+            tilt_angle: typeof data.tilt_angle === 'number' ? data.tilt_angle : prev.tilt_angle,
+            x_coord: typeof data.x_coord === 'number' ? data.x_coord : prev.x_coord,
+            y_coord: typeof data.y_coord === 'number' ? data.y_coord : prev.y_coord,
+            last_updated: data.last_updated || prev.last_updated,
+          }));
         }
       });
 
@@ -673,7 +761,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
   const triggerManualAlert = useCallback((customImageUrl?: string, title?: string) => {
     const newId = `-P2Manual_${Date.now()}`;
-    const img = customImageUrl || latestImageUrl || 'https://iili.io/nuiqbzg.jpg';
+    const img = normalizeImageSource(customImageUrl || latestImageUrl || DEFAULT_FALLBACK_IMAGE);
     
     const newDetection: AIDetection = {
       id: newId,

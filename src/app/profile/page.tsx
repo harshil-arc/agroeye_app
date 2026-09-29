@@ -146,7 +146,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
                 <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                 <span className="font-headline text-[10px] uppercase text-emerald-800 font-bold">
-                  Firebase Ingest Live
+                  Cloud Sync Active
                 </span>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function ProfilePage() {
           {profileSaveSuccess && (
             <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span className="font-bold">Farm profile details synchronized with Firebase Realtime Database!</span>
+              <span className="font-bold">Farm profile details synchronized successfully!</span>
             </div>
           )}
 

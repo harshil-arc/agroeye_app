@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import {
@@ -10,22 +9,17 @@ import {
   Mail,
   User,
   Phone,
-  MapPin,
-  Leaf,
-  Layers,
   ArrowRight,
   Eye,
   EyeOff,
-  ShieldCheck,
   AlertCircle,
-  Sparkles,
   CheckCircle2,
   Globe
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginWithEmail, registerWithEmail, isAuthenticated, userProfile } = useAuth();
+  const { loginWithEmail, registerWithEmail, isAuthenticated } = useAuth();
   const { lang, setLang, t } = useLanguage();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -39,10 +33,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>('');
   const [displayName, setDisplayName] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
-  const [farmName, setFarmName] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
-  const [crop, setCrop] = useState<string>('Rice / Paddy');
-  const [farmSize, setFarmSize] = useState<string>('5 Acres');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,16 +63,16 @@ export default function LoginPage() {
           password,
           displayName,
           phoneNumber,
-          farmName: farmName || 'Primary Farm Sector',
-          location: location || 'Dabok, Udaipur',
-          crop,
-          farmSize,
+          farmName: 'my Farm Dabok',
+          location: 'Dabok, Udaipur',
+          crop: 'Rice / Paddy',
+          farmSize: '5 Acres',
         });
 
         setSuccessMsg(
           lang === 'hi'
             ? 'खाता सफलतापूर्वक बनाया गया! प्रोफ़ाइल पर भेजा जा रहा है...'
-            : 'Account created and saved to cloud! Redirecting to Profile...'
+            : 'Account created successfully! Redirecting to Profile...'
         );
         setTimeout(() => {
           router.push('/profile');
@@ -136,7 +126,7 @@ export default function LoginPage() {
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
           {mode === 'login'
             ? 'Access your live telemetry, field sensors, and AI vision'
-            : 'Register your farm plot for edge AI detection and live monitoring'}
+            : 'Register your account for live crop monitoring and edge alerts'}
         </p>
       </div>
 
@@ -226,66 +216,6 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-headline text-xs font-bold text-slate-700 mb-1">
-                    {lang === 'hi' ? 'खेत का नाम' : 'Farm Name'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Dabok Rice Field"
-                    value={farmName}
-                    onChange={(e) => setFarmName(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-headline text-xs font-bold text-slate-700 mb-1">
-                    {lang === 'hi' ? 'स्थान / जिला' : 'Location / District'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Dabok, Udaipur"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-headline text-xs font-bold text-slate-700 mb-1">
-                    {lang === 'hi' ? 'मुख्य फसल' : 'Primary Crop'}
-                  </label>
-                  <select
-                    value={crop}
-                    onChange={(e) => setCrop(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  >
-                    <option value="Rice / Paddy">Rice / Paddy</option>
-                    <option value="Wheat">Wheat</option>
-                    <option value="Maize / Corn">Maize / Corn</option>
-                    <option value="Cotton">Cotton</option>
-                    <option value="Mustard">Mustard</option>
-                    <option value="Sugarcane">Sugarcane</option>
-                    <option value="Tomato & Vegetables">Tomato & Vegetables</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-headline text-xs font-bold text-slate-700 mb-1">
-                    {lang === 'hi' ? 'खेत का क्षेत्रफल' : 'Farm Acreage'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 5 Acres"
-                    value={farmSize}
-                    onChange={(e) => setFarmSize(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
             </>
           )}
 
@@ -359,12 +289,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Cloud Persistence Badge */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Secured with Firebase Realtime Cloud Ingest</span>
-        </div>
       </div>
     </div>
   );
