@@ -36,6 +36,7 @@ export default function LiveCameraPage() {
     updateCameraCoords,
     sendCameraStep,
     firebaseConfig,
+    latestImageUrl,
   } = useFarmData();
 
   const { isAuthenticated, operator, setIsAuthModalOpen } = useAuth();
@@ -343,31 +344,55 @@ export default function LiveCameraPage() {
             }`}
           />
 
-          {/* Camera Not Working Screen (Shown when feed is unavailable) */}
+          {/* Camera Snapshot / Live Standby Screen */}
           {!hasLiveStream && (
-            <div className="relative w-full aspect-[16/10] sm:aspect-video bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
-              <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center mb-3 shadow-lg">
-                <VideoOff className="w-8 h-8 animate-pulse" />
+            <div className="relative w-full aspect-[16/10] sm:aspect-video bg-slate-950">
+              <img
+                src={latestImageUrl}
+                alt="Latest Farm Camera Snapshot"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none" />
+
+              {/* Snapshot HUD Reticle Overlay */}
+              <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none" />
+              <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none" />
+
+              {/* Top HUD Indicators */}
+              <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow">
+                      FARM CAMERA SNAPSHOT • INGEST ACTIVE
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
+                    <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
+                      MODE: {cameraControl.mode.toUpperCase()}
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-300 font-bold">
+                      PAN: {cameraControl.pan_angle}°
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={startStream}
+                    className="pointer-events-auto px-2.5 py-1 bg-black/60 hover:bg-black/80 text-white rounded-lg border border-white/20 font-headline text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95"
+                  >
+                    <RefreshCw className={`w-3 h-3 text-emerald-400 ${isRetryingStream ? 'animate-spin' : ''}`} />
+                    <span>{isRetryingStream ? 'Connecting...' : 'Connect Video Stream'}</span>
+                  </button>
+                </div>
               </div>
-
-              <h3 className="font-headline text-lg sm:text-xl font-bold text-white tracking-tight">
-                {lang === 'hi' ? 'कैमरा काम नहीं कर रहा है' : 'The Camera is Not Working'}
-              </h3>
-
-              <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
-                {lang === 'hi'
-                  ? 'कैमरा फ़ीड वर्तमान में उपलब्ध नहीं है। कृपया कैमरा कनेक्शन और पावर जांचें।'
-                  : 'Live video feed is currently unavailable or disconnected. Please check camera power and connection.'}
-              </p>
-
-              <button
-                type="button"
-                onClick={startStream}
-                className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-md"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
-                <span>{isRetryingStream ? 'Checking Camera...' : 'Retry Connection'}</span>
-              </button>
             </div>
           )}
 
@@ -620,16 +645,15 @@ export default function LiveCameraPage() {
                 className="w-full h-full object-contain"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-white">
-                <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center mb-3">
-                  <VideoOff className="w-8 h-8 animate-pulse" />
-                </div>
-                <h3 className="font-headline text-xl font-bold text-white">
-                  The Camera is Not Working
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Live feed is currently offline. You can still rotate the camera using the side controls.
-                </p>
+              <div className="relative w-full h-full flex items-center justify-center bg-black">
+                <img
+                  src={latestImageUrl}
+                  alt="Fullscreen Camera Snapshot"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLElement).setAttribute('src', 'https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=800&auto=format&fit=crop&q=80');
+                  }}
+                />
               </div>
             )}
 

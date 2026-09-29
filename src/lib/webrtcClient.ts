@@ -26,6 +26,8 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
@@ -36,8 +38,15 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
       username: 'openrelayproject',
       credential: 'openrelayproject',
     },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
-  iceCandidatePoolSize: 2,
+  iceCandidatePoolSize: 4,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
 };
 
 export class WebRTCStreamClient {
@@ -53,6 +62,7 @@ export class WebRTCStreamClient {
   private statsInterval: NodeJS.Timeout | null = null;
   private connectionTimeout: NodeJS.Timeout | null = null;
   private processedPiCandidates: Set<string> = new Set();
+  private pendingRemoteCandidates: RTCIceCandidateInit[] = [];
   private prevBytesReceived = 0;
   private prevTimestamp = 0;
   private isConnecting = false;
@@ -94,8 +104,9 @@ export class WebRTCStreamClient {
     this.stopInternal();
     this.isConnecting = true;
     this.processedPiCandidates.clear();
+    this.pendingRemoteCandidates = [];
 
-    // 6-Second Timeout: If Pi doesn't answer SDP within 6s, fail gracefully and show snapshot
+    // Timeout: If Pi doesn't answer SDP within 8s, fail gracefully and show snapshot
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.pc && this.pc.connectionState !== 'connected') {
@@ -111,9 +122,15 @@ export class WebRTCStreamClient {
           isRelayed: false,
         });
       }
-    }, 6000);
+    }, 8000);
 
     try {
+      // 1. Clear old signaling nodes BEFORE starting new ICE candidate gathering
+      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/answer`), null);
+
+      // 2. Initialize PeerConnection with optimized ICE configuration
       this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
 
       this.pc.ontrack = (event) => {
@@ -148,17 +165,34 @@ export class WebRTCStreamClient {
       };
 
       this.pc.oniceconnectionstatechange = () => {
+        if (!this.pc) return;
+        if (this.pc.iceConnectionState === 'failed' || this.pc.iceConnectionState === 'disconnected') {
+          if (!this.isManuallyStopped) {
+            this.pc.restartIce();
+          }
+        }
         this.emitStats();
       };
 
-      this.pc.addTransceiver('video', { direction: 'recvonly' });
+      const transceiver = this.pc.addTransceiver('video', { direction: 'recvonly' });
+      if (transceiver.receiver && (transceiver.receiver as any).playoutDelayHint !== undefined) {
+        (transceiver.receiver as any).playoutDelayHint = 0; // Ultra-low latency playback
+      }
 
       const offer = await this.pc.createOffer({
         offerToReceiveVideo: true,
         offerToReceiveAudio: false,
       });
-      await this.pc.setLocalDescription(offer);
 
+      // Optimize SDP for low latency
+      let sdp = offer.sdp || '';
+      if (!sdp.includes('b=AS:')) {
+        sdp = sdp.replace(/c=IN IP4 (.*?)\r\n/g, 'c=IN IP4 $1\r\nb=AS:2500\r\n');
+      }
+
+      await this.pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+
+      // Wait briefly for initial ICE candidates to be gathered
       await new Promise<void>((resolve) => {
         if (!this.pc || this.pc.iceGatheringState === 'complete') {
           resolve();
@@ -174,10 +208,10 @@ export class WebRTCStreamClient {
         setTimeout(() => {
           if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
           resolve();
-        }, 1200);
+        }, 1000);
       });
 
-      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp;
+      const fullLocalSdp = this.pc.localDescription?.sdp || sdp;
       const offerPayload = {
         sdp: fullLocalSdp,
         type: 'offer',
@@ -185,11 +219,10 @@ export class WebRTCStreamClient {
         client: 'Farmer Mobile App',
       };
 
-      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/answer`), null);
+      // 3. Write Offer payload to Firebase
       await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
 
+      // 4. Listen for Answer from Raspberry Pi
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
         const answer = snapshot.val();
@@ -201,12 +234,23 @@ export class WebRTCStreamClient {
                 type: answer.type || 'answer',
               })
             );
+
+            // Flush pending remote ICE candidates now that remote description is set
+            while (this.pendingRemoteCandidates.length > 0) {
+              const pendingCand = this.pendingRemoteCandidates.shift();
+              if (pendingCand && this.pc) {
+                try {
+                  await this.pc.addIceCandidate(new RTCIceCandidate(pendingCand));
+                } catch (e) {}
+              }
+            }
           } catch (err) {
             console.error('[WebRTC] Set remote description failed:', err);
           }
         }
       });
 
+      // 5. Listen for ICE candidates from Pi
       const piCandRef = ref(this.db, `${this.sessionPath}/pi_candidates`);
       this.piCandidatesUnsub = onValue(piCandRef, async (snapshot) => {
         const val = snapshot.val();
@@ -221,16 +265,21 @@ export class WebRTCStreamClient {
         for (const cand of candidatesList as any[]) {
           if (cand && cand.candidate && !this.processedPiCandidates.has(cand.candidate)) {
             this.processedPiCandidates.add(cand.candidate);
-            try {
-              await this.pc.addIceCandidate(
-                new RTCIceCandidate({
-                  candidate: cand.candidate,
-                  sdpMid: cand.sdpMid || '0',
-                  sdpMLineIndex: cand.sdpMLineIndex ?? 0,
-                })
-              );
-            } catch (err) {
-              console.debug('[WebRTC] ICE candidate error:', err);
+            const candInit: RTCIceCandidateInit = {
+              candidate: cand.candidate,
+              sdpMid: cand.sdpMid || '0',
+              sdpMLineIndex: cand.sdpMLineIndex ?? 0,
+            };
+
+            // If remote description isn't set yet, queue the candidate
+            if (!this.pc.remoteDescription || !this.pc.remoteDescription.type) {
+              this.pendingRemoteCandidates.push(candInit);
+            } else {
+              try {
+                await this.pc.addIceCandidate(new RTCIceCandidate(candInit));
+              } catch (err) {
+                console.debug('[WebRTC] ICE candidate error:', err);
+              }
             }
           }
         }

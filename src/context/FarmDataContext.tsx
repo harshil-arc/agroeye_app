@@ -136,6 +136,18 @@ export function normalizeImageSource(raw: any): string {
 
   if (!val) return DEFAULT_FALLBACK_IMAGE;
 
+  // Convert FreeImage.host viewer page links (e.g., https://freeimage.host/i/nYX2dkg) to direct image files
+  const freeImageMatch = val.match(/freeimage\.host\/(?:i|image)\/([a-zA-Z0-9_-]+)/i);
+  if (freeImageMatch && freeImageMatch[1]) {
+    return `https://iili.io/${freeImageMatch[1]}.jpg`;
+  }
+
+  // Convert Imgur viewer links to direct images
+  const imgurMatch = val.match(/imgur\.com\/([a-zA-Z0-9]+)$/i);
+  if (imgurMatch && imgurMatch[1] && !val.includes('/a/')) {
+    return `https://i.imgur.com/${imgurMatch[1]}.jpg`;
+  }
+
   // Prepend correct Data URI prefix if raw base64 string is provided without header
   if (val.startsWith('/9j/') || val.startsWith('iVBORw0KGgo') || val.startsWith('R0lGOD') || val.startsWith('UklGR')) {
     const mime = val.startsWith('iVBORw0KGgo') ? 'image/png' : val.startsWith('R0lGOD') ? 'image/gif' : val.startsWith('UklGR') ? 'image/webp' : 'image/jpeg';
@@ -454,9 +466,18 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       setFirebaseConnected(true);
 
-      // 1. Process real alerts/detections from Firebase (supports disease_alerts, detections, alerts, etc.)
-      const rawAlerts = data.disease_alerts || data.detections || data.alerts || data.crop_alerts || data.yolo_detections || data.ai_detections;
-      if (rawAlerts && typeof rawAlerts === 'object') {
+      // 1. Process real alerts/detections/snapshots from Firebase
+      const rawAlerts = {
+        ...(typeof data.disease_alerts === 'object' ? data.disease_alerts : {}),
+        ...(typeof data.snapshots === 'object' ? data.snapshots : {}),
+        ...(typeof data.detections === 'object' ? data.detections : {}),
+        ...(typeof data.alerts === 'object' ? data.alerts : {}),
+        ...(typeof data.crop_alerts === 'object' ? data.crop_alerts : {}),
+        ...(typeof data.yolo_detections === 'object' ? data.yolo_detections : {}),
+        ...(typeof data.ai_detections === 'object' ? data.ai_detections : {}),
+      };
+
+      if (rawAlerts && Object.keys(rawAlerts).length > 0) {
         const currentDeleted = deletedDetectionIdsRef.current;
         const entries = Object.entries(rawAlerts);
         const parsedList: AIDetection[] = entries
@@ -480,7 +501,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Check for direct live camera image snapshot in root or live_status node
+      // Check for direct live camera image snapshot in root or live_status or snapshots node
       const liveImgCandidate = data.live_status?.latest_photo_url ||
         data.live_status?.image ||
         data.live_status?.photo_url ||
@@ -625,10 +646,10 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firebaseConfig.databaseURL]);
 
-  // Initial fetch and auto-polling every 6 seconds for live telemetry
+  // Initial fetch and auto-polling every 2.5 seconds for instant telemetry & detection updates
   useEffect(() => {
     refreshFirebaseData();
-    const interval = setInterval(refreshFirebaseData, 6000);
+    const interval = setInterval(refreshFirebaseData, 2500);
     return () => clearInterval(interval);
   }, [refreshFirebaseData]);
 
@@ -642,12 +663,12 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const alertsRef = ref(db, 'disease_alerts');
+      const snapshotsRef = ref(db, 'snapshots');
       const sensorRef = ref(db, 'sensor_readings');
       const liveStatusRef = ref(db, 'live_status');
       const cameraControlRef = ref(db, 'camera_control');
 
-      const unsubAlerts = onValue(alertsRef, (snapshot) => {
-        const data = snapshot.val();
+      const handleIncomingDetectionsOrSnapshots = (data: any) => {
         if (data && typeof data === 'object') {
           const currentDeleted = deletedDetectionIdsRef.current;
           const entries = Object.entries(data);
@@ -656,7 +677,21 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
             .reverse();
 
-          setDetections(parsedList);
+          setDetections((prev) => {
+            // Merge existing and new detections by ID
+            const map = new Map<string, AIDetection>();
+            parsedList.forEach((d) => map.set(d.id, d));
+            prev.forEach((d) => {
+              if (!map.has(d.id) && !currentDeleted.includes(d.id)) {
+                map.set(d.id, d);
+              }
+            });
+            const merged = Array.from(map.values());
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('agroeye_offline_detections', JSON.stringify(merged));
+            }
+            return merged;
+          });
 
           if (parsedList.length > 0) {
             const newest = parsedList[0];
@@ -668,6 +703,14 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             previousLatestKeyRef.current = newest.id;
           }
         }
+      };
+
+      const unsubAlerts = onValue(alertsRef, (snapshot) => {
+        handleIncomingDetectionsOrSnapshots(snapshot.val());
+      });
+
+      const unsubSnapshots = onValue(snapshotsRef, (snapshot) => {
+        handleIncomingDetectionsOrSnapshots(snapshot.val());
       });
 
       const unsubSensors = onValue(sensorRef, (snapshot) => {
@@ -750,6 +793,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
 
       return () => {
         off(alertsRef);
+        off(snapshotsRef);
         off(sensorRef);
         off(liveStatusRef);
         off(cameraControlRef);
