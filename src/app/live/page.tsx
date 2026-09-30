@@ -148,7 +148,6 @@ export default function LiveCameraPage() {
           setHasLiveStream(true);
           setIsRetryingStream(false);
         } else if (stats.connectionState === 'timeout' || stats.connectionState === 'failed' || stats.connectionState === 'closed') {
-          setHasLiveStream(false);
           setIsRetryingStream(false);
         }
       },
@@ -312,15 +311,19 @@ export default function LiveCameraPage() {
             <div className="flex items-center gap-1.5">
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  hasLiveStream ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400'
+                  hasLiveStream ? 'bg-emerald-600 animate-pulse' : isRetryingStream ? 'bg-amber-500 animate-ping' : 'bg-slate-400'
                 }`}
               />
               <span
                 className={`font-headline text-[11px] uppercase tracking-wider font-bold ${
-                  hasLiveStream ? 'text-emerald-800' : 'text-slate-600'
+                  hasLiveStream ? 'text-emerald-800' : isRetryingStream ? 'text-amber-800' : 'text-slate-600'
                 }`}
               >
-                {hasLiveStream ? 'Live Video Stream (30 FPS)' : 'Camera Inactive • Standby'}
+                {hasLiveStream
+                  ? 'Live Video Stream (30 FPS)'
+                  : isRetryingStream
+                  ? 'Connecting Live Camera Stream...'
+                  : 'Camera Inactive • Standby'}
               </span>
             </div>
             <h1 className="font-headline text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
@@ -350,13 +353,13 @@ export default function LiveCameraPage() {
         </div>
       </section>
 
-      {/* 2. CAMERA VIEWPORT: LIVE STREAM OR CAMERA DEACTIVATED STANDBY */}
+      {/* 2. CAMERA VIEWPORT: LIVE STREAM / CONNECTING HUD / STANDBY */}
       <section className="px-4">
         <div
           ref={videoViewportRef}
           className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5 aspect-[16/10] sm:aspect-video flex items-center justify-center"
         >
-          {/* Active WebRTC Live Video Track (Rendered when live stream is active) */}
+          {/* Active WebRTC Live Video Track (Always mounted to instantly receive incoming frames) */}
           <video
             ref={videoElementRef}
             autoPlay
@@ -367,8 +370,40 @@ export default function LiveCameraPage() {
             }`}
           />
 
-          {/* Camera Deactivated / Inactive Standby Page (Rendered when system/camera is inactive) */}
-          {!hasLiveStream && (
+          {/* Connecting State Overlay */}
+          {!hasLiveStream && isRetryingStream && (
+            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+              <div className="relative mb-3 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-2xl animate-pulse">
+                  <Video className="w-8 h-8" />
+                </div>
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full animate-ping" />
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-[11px] font-headline font-bold uppercase tracking-wider mb-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Negotiating Live Video Feed</span>
+              </div>
+
+              <h3 className="font-headline text-base sm:text-lg font-bold text-white tracking-tight">
+                {lang === 'hi' ? 'लाइव कैमरा स्ट्रीम से कनेक्ट हो रहा है...' : 'Connecting to Live Camera Stream (30 FPS)...'}
+              </h3>
+
+              <p className="text-xs text-slate-300 mt-1.5 max-w-md leading-relaxed">
+                {lang === 'hi'
+                  ? 'फील्ड कैमरा नोड (CAM #01) से रीयल-टाइम वीडियो कनेक्शन स्थापित किया जा रहा है।'
+                  : 'Establishing ultra-low latency WebRTC connection with optical camera node (pi_agroeye_01)...'}
+              </p>
+
+              <div className="mt-4 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+                <span className="text-xs text-emerald-300 font-mono font-bold">Syncing live video packets...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Camera Inactive Standby Page (When not streaming and not actively negotiating) */}
+          {!hasLiveStream && !isRetryingStream && (
             <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
               <div className="relative mb-3 flex items-center justify-center">
                 <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center shadow-2xl ring-1 ring-slate-800/80">
@@ -389,7 +424,7 @@ export default function LiveCameraPage() {
               <p className="text-xs text-slate-400 mt-1.5 max-w-md leading-relaxed">
                 {lang === 'hi'
                   ? 'फील्ड ऑप्टिकल कैमरा नोड वर्तमान में निष्क्रिय या स्टैंडबाय स्थिति में है। कैमरा शुरू होने पर लाइव वीडियो स्ट्रीम यहां स्वचालित रूप से दिखाई देगी।'
-                  : 'The optical camera node (pi_agroeye_01) is currently inactive or in standby. When the camera broadcasts, the live 30 FPS video feed will automatically appear here.'}
+                  : 'The optical camera node (pi_agroeye_01) is currently inactive or in standby. Click below to initiate live 30 FPS video streaming.'}
               </p>
 
               <button
@@ -397,8 +432,8 @@ export default function LiveCameraPage() {
                 onClick={startStream}
                 className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-md"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
-                <span>{isRetryingStream ? 'Connecting Camera Stream...' : 'Connect Camera Stream'}</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Connect Live Camera Feed</span>
               </button>
 
               <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-3 text-[10px] font-mono text-slate-500">
@@ -436,8 +471,16 @@ export default function LiveCameraPage() {
                 </div>
 
                 <div className="flex items-center gap-1.5 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={startStream}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white transition-all"
+                    title="Re-sync WebRTC Stream"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
                   <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-1 rounded-lg border border-white/10 font-bold">
-                    {streamStats.fps > 0 ? `${streamStats.fps} FPS` : 'LIVE FEED'}
+                    {streamStats.fps > 0 ? `${streamStats.fps} FPS` : '30 FPS'}
                   </span>
                 </div>
               </div>
@@ -630,7 +673,7 @@ export default function LiveCameraPage() {
           ref={fullscreenContainerRef}
           className="fixed inset-0 z-[99999] bg-black flex flex-col justify-between overflow-hidden animate-in fade-in"
         >
-          {/* Fullscreen Video Canvas / Deactivated Viewport */}
+          {/* Fullscreen Video Canvas / Viewport */}
           <div className="relative w-full h-full flex items-center justify-center bg-black">
             {hasLiveStream ? (
               <video
@@ -640,6 +683,18 @@ export default function LiveCameraPage() {
                 muted
                 className="w-full h-full object-contain"
               />
+            ) : isRetryingStream ? (
+              <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
+                <Video className="w-14 h-14 text-emerald-400 animate-pulse mb-3" />
+                <h3 className="font-headline text-lg font-bold">
+                  {lang === 'hi' ? 'लाइव स्ट्रीम कनेक्ट हो रही है...' : 'Connecting Live Camera Stream...'}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                  {lang === 'hi'
+                    ? 'ऑप्टिकल कैमरा नोड से रीयल-टाइम वीडियो स्ट्रीम प्राप्त की जा रही है।'
+                    : 'Connecting to field optical camera node (pi_agroeye_01)...'}
+                </p>
+              </div>
             ) : (
               <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
                 <VideoOff className="w-14 h-14 text-slate-500 mb-3" />
@@ -656,7 +711,7 @@ export default function LiveCameraPage() {
                   onClick={startStream}
                   className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
                 >
-                  {isRetryingStream ? 'Connecting...' : 'Connect Stream'}
+                  Connect Stream
                 </button>
               </div>
             )}
@@ -671,7 +726,7 @@ export default function LiveCameraPage() {
                     }`}
                   />
                   <span className="font-headline text-xs font-bold">
-                    {hasLiveStream ? 'LIVE STREAM (30 FPS)' : 'CAMERA INACTIVE'}
+                    {hasLiveStream ? 'LIVE STREAM (30 FPS)' : 'CAMERA STANDBY'}
                   </span>
                 </div>
                 <span className="font-mono text-xs text-emerald-300 font-bold px-2 py-1 rounded bg-black/60 backdrop-blur-md">

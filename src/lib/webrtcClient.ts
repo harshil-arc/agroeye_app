@@ -29,24 +29,6 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.services.mozilla.com:3478' },
-    {
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: [
-        'turn:standard.relay.metered.ca:80',
-        'turn:standard.relay.metered.ca:443',
-        'turn:standard.relay.metered.ca:443?transport=tcp'
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    }
   ],
   iceCandidatePoolSize: 4,
   bundlePolicy: 'max-bundle',
@@ -65,7 +47,6 @@ export class WebRTCStreamClient {
   private piCandidatesUnsub: (() => void) | null = null;
   private statsInterval: NodeJS.Timeout | null = null;
   private connectionTimeout: NodeJS.Timeout | null = null;
-  private autoRetryTimeout: NodeJS.Timeout | null = null;
   private processedPiCandidates: Set<string> = new Set();
   private pendingRemoteCandidates: RTCIceCandidateInit[] = [];
   private prevBytesReceived = 0;
@@ -111,7 +92,7 @@ export class WebRTCStreamClient {
     this.processedPiCandidates.clear();
     this.pendingRemoteCandidates = [];
 
-    // Timeout & graceful auto-retry if Pi doesn't answer within 8s
+    // Timeout: If Pi doesn't answer within 15s, update status
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.pc && this.pc.connectionState !== 'connected') {
@@ -120,27 +101,20 @@ export class WebRTCStreamClient {
           fps: 0,
           bitrateKbps: 0,
           latencyMs: 0,
-          resolution: 'Standby / Live Ingest',
+          resolution: 'Standby',
           connectionState: 'timeout',
           iceState: 'idle',
           isRelayed: false,
         });
-        this.scheduleAutoRetry(7000);
       }
-    }, 8000);
+    }, 15000);
 
     try {
-      // 1. Clear old signaling nodes
-      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/answer`), null);
-
-      // 2. Initialize PeerConnection with standard WebRTC configuration
+      // 1. Initialize PeerConnection with standard WebRTC configuration
       this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
 
       this.pc.ontrack = (event) => {
         if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
-        if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
         
         const stream = (event.streams && event.streams[0]) 
           ? event.streams[0] 
@@ -168,13 +142,9 @@ export class WebRTCStreamClient {
         const state = this.pc.connectionState;
         if (state === 'connected') {
           if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
-          if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
           this.isConnecting = false;
         } else if (state === 'failed' || state === 'closed' || state === 'disconnected') {
           this.isConnecting = false;
-          if (!this.isManuallyStopped) {
-            this.scheduleAutoRetry(5000);
-          }
         }
         this.emitStats();
       };
@@ -185,9 +155,7 @@ export class WebRTCStreamClient {
           if (!this.isManuallyStopped) {
             try {
               this.pc.restartIce();
-            } catch (e) {
-              this.scheduleAutoRetry(4000);
-            }
+            } catch (e) {}
           }
         }
         this.emitStats();
@@ -195,56 +163,21 @@ export class WebRTCStreamClient {
 
       const transceiver = this.pc.addTransceiver('video', { direction: 'recvonly' });
       if (transceiver.receiver) {
-        if ('playoutDelayHint' in transceiver.receiver) {
-          (transceiver.receiver as any).playoutDelayHint = 0;
-        }
-        if ('jitterBufferTarget' in transceiver.receiver) {
-          (transceiver.receiver as any).jitterBufferTarget = 0;
-        }
+        try {
+          if ('playoutDelayHint' in transceiver.receiver) {
+            (transceiver.receiver as any).playoutDelayHint = 0;
+          }
+          if ('jitterBufferTarget' in transceiver.receiver) {
+            (transceiver.receiver as any).jitterBufferTarget = 0;
+          }
+        } catch (e) {}
       }
 
-      const offer = await this.pc.createOffer({
-        offerToReceiveVideo: true,
-        offerToReceiveAudio: false,
-      });
-
-      await this.pc.setLocalDescription(offer);
-
-      // Wait briefly for initial candidates
-      await new Promise<void>((resolve) => {
-        if (!this.pc || this.pc.iceGatheringState === 'complete') {
-          resolve();
-          return;
-        }
-        const checkState = () => {
-          if (!this.pc || this.pc.iceGatheringState === 'complete') {
-            if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
-            resolve();
-          }
-        };
-        this.pc.addEventListener('icegatheringstatechange', checkState);
-        setTimeout(() => {
-          if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
-          resolve();
-        }, 1000);
-      });
-
-      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
-      const offerPayload = {
-        sdp: fullLocalSdp,
-        type: 'offer',
-        timestamp: Date.now(),
-        client: 'AgroEye Web Client',
-      };
-
-      // 3. Write Offer payload to Firebase
-      await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
-
-      // 4. Listen for Answer from Raspberry Pi
+      // Attach Answer & ICE listeners BEFORE sending offer to avoid race conditions
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
         const answer = snapshot.val();
-        if (answer && answer.sdp && this.pc && this.pc.signalingState === 'have-local-offer') {
+        if (answer && answer.sdp && this.pc && (this.pc.signalingState === 'have-local-offer' || !this.pc.remoteDescription)) {
           try {
             await this.pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -268,7 +201,6 @@ export class WebRTCStreamClient {
         }
       });
 
-      // 5. Listen for ICE candidates from Pi
       const piCandRef = ref(this.db, `${this.sessionPath}/pi_candidates`);
       this.piCandidatesUnsub = onValue(piCandRef, async (snapshot) => {
         const val = snapshot.val();
@@ -302,25 +234,52 @@ export class WebRTCStreamClient {
         }
       });
 
+      // Clear previous client candidates
+      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/answer`), null);
+
+      const offer = await this.pc.createOffer({
+        offerToReceiveVideo: true,
+        offerToReceiveAudio: false,
+      });
+
+      await this.pc.setLocalDescription(offer);
+
+      // Wait briefly for initial local ICE candidates
+      await new Promise<void>((resolve) => {
+        if (!this.pc || this.pc.iceGatheringState === 'complete') {
+          resolve();
+          return;
+        }
+        const checkState = () => {
+          if (!this.pc || this.pc.iceGatheringState === 'complete') {
+            if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
+            resolve();
+          }
+        };
+        this.pc.addEventListener('icegatheringstatechange', checkState);
+        setTimeout(() => {
+          if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
+          resolve();
+        }, 1000);
+      });
+
+      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
+      const offerPayload = {
+        sdp: fullLocalSdp,
+        type: 'offer',
+        timestamp: Date.now(),
+        client: 'AgroEye Web Client',
+      };
+
+      // Write Offer payload to Firebase to trigger Raspberry Pi
+      await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
+
       this.startStatsLoop();
     } catch (error: any) {
       this.isConnecting = false;
       this.onErrorCallback?.(error);
-      if (!this.isManuallyStopped) {
-        this.scheduleAutoRetry(6000);
-      }
     }
-  }
-
-  private scheduleAutoRetry(delayMs: number) {
-    if (this.isManuallyStopped) return;
-    if (this.autoRetryTimeout) clearTimeout(this.autoRetryTimeout);
-    this.autoRetryTimeout = setTimeout(() => {
-      if (!this.isManuallyStopped && (!this.pc || this.pc.connectionState !== 'connected')) {
-        console.log('[WebRTC] Auto-reconnecting live stream...');
-        this.start().catch(() => {});
-      }
-    }, delayMs);
   }
 
   private startStatsLoop() {
@@ -380,10 +339,6 @@ export class WebRTCStreamClient {
     if (this.connectionTimeout) {
       clearTimeout(this.connectionTimeout);
       this.connectionTimeout = null;
-    }
-    if (this.autoRetryTimeout) {
-      clearTimeout(this.autoRetryTimeout);
-      this.autoRetryTimeout = null;
     }
     if (this.statsInterval) {
       clearInterval(this.statsInterval);
