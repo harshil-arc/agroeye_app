@@ -103,7 +103,9 @@ export default function LiveCameraPage() {
   const bindVideoMedia = useCallback((vid: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!vid) return;
     if (stream) {
-      vid.srcObject = stream;
+      if (vid.srcObject !== stream) {
+        vid.srcObject = stream;
+      }
       vid.muted = true;
       vid.playsInline = true;
       vid.setAttribute('playsinline', 'true');
@@ -130,6 +132,7 @@ export default function LiveCameraPage() {
 
     if (webrtcClientRef.current) {
       webrtcClientRef.current.stop();
+      webrtcClientRef.current = null;
     }
 
     const client = new WebRTCStreamClient({
@@ -167,6 +170,12 @@ export default function LiveCameraPage() {
       if (webrtcClientRef.current) {
         webrtcClientRef.current.stop();
         webrtcClientRef.current = null;
+      }
+      if (videoElementRef.current) {
+        videoElementRef.current.srcObject = null;
+      }
+      if (fullscreenVideoElementRef.current) {
+        fullscreenVideoElementRef.current.srcObject = null;
       }
       setHasLiveStream(false);
       setStreamMedia(null);
@@ -365,6 +374,11 @@ export default function LiveCameraPage() {
             autoPlay
             playsInline
             muted
+            onLoadedData={() => {
+              if (videoElementRef.current) {
+                videoElementRef.current.play().catch(() => {});
+              }
+            }}
             className={`absolute inset-0 w-full h-full object-cover bg-slate-950 transition-opacity duration-300 ${
               hasLiveStream ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
             }`}
@@ -681,6 +695,11 @@ export default function LiveCameraPage() {
                 autoPlay
                 playsInline
                 muted
+                onLoadedData={() => {
+                  if (fullscreenVideoElementRef.current) {
+                    fullscreenVideoElementRef.current.play().catch(() => {});
+                  }
+                }}
                 className="w-full h-full object-contain"
               />
             ) : isRetryingStream ? (

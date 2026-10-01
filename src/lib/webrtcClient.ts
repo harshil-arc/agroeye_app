@@ -53,6 +53,7 @@ export class WebRTCStreamClient {
   private prevTimestamp = 0;
   private isConnecting = false;
   private isManuallyStopped = false;
+  private currentOfferTimestamp = 0;
 
   constructor(options: WebRTCOptions) {
     this.deviceId = options.deviceId || 'pi_agroeye_01';
@@ -91,8 +92,9 @@ export class WebRTCStreamClient {
     this.isConnecting = true;
     this.processedPiCandidates.clear();
     this.pendingRemoteCandidates = [];
+    this.currentOfferTimestamp = Date.now();
 
-    // Timeout: If Pi doesn't answer within 15s, update status
+    // Timeout: If Pi doesn't answer within 18s, update status
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.pc && this.pc.connectionState !== 'connected') {
@@ -107,10 +109,15 @@ export class WebRTCStreamClient {
           isRelayed: false,
         });
       }
-    }, 15000);
+    }, 18000);
 
     try {
-      // 1. Initialize PeerConnection with standard WebRTC configuration
+      // 1. Cleanly clear stale signaling nodes from previous sessions before starting
+      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/answer`), null);
+
+      // 2. Initialize PeerConnection
       this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
 
       this.pc.ontrack = (event) => {
@@ -173,11 +180,54 @@ export class WebRTCStreamClient {
         } catch (e) {}
       }
 
-      // Attach Answer & ICE listeners BEFORE sending offer to avoid race conditions
+      // 3. Create Offer and Set Local Description
+      const offer = await this.pc.createOffer({
+        offerToReceiveVideo: true,
+        offerToReceiveAudio: false,
+      });
+
+      await this.pc.setLocalDescription(offer);
+
+      // Wait briefly for initial local ICE candidates
+      await new Promise<void>((resolve) => {
+        if (!this.pc || this.pc.iceGatheringState === 'complete') {
+          resolve();
+          return;
+        }
+        const checkState = () => {
+          if (!this.pc || this.pc.iceGatheringState === 'complete') {
+            if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
+            resolve();
+          }
+        };
+        this.pc.addEventListener('icegatheringstatechange', checkState);
+        setTimeout(() => {
+          if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
+          resolve();
+        }, 1000);
+      });
+
+      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
+      const offerPayload = {
+        sdp: fullLocalSdp,
+        type: 'offer',
+        timestamp: this.currentOfferTimestamp,
+        client: 'AgroEye Web Client',
+      };
+
+      // 4. Attach Answer & Remote ICE listeners with Stale Protection
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
         const answer = snapshot.val();
-        if (answer && answer.sdp && this.pc && (this.pc.signalingState === 'have-local-offer' || !this.pc.remoteDescription)) {
+        if (!answer || !answer.sdp) return;
+
+        // Ignore stale answer from previous sessions
+        if (answer.timestamp && answer.timestamp < this.currentOfferTimestamp - 500) {
+          console.log('[WebRTC] Skipping stale answer from older session.');
+          return;
+        }
+
+        if (this.pc && (this.pc.signalingState === 'have-local-offer')) {
           try {
             await this.pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -234,45 +284,7 @@ export class WebRTCStreamClient {
         }
       });
 
-      // Clear previous client candidates
-      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/answer`), null);
-
-      const offer = await this.pc.createOffer({
-        offerToReceiveVideo: true,
-        offerToReceiveAudio: false,
-      });
-
-      await this.pc.setLocalDescription(offer);
-
-      // Wait briefly for initial local ICE candidates
-      await new Promise<void>((resolve) => {
-        if (!this.pc || this.pc.iceGatheringState === 'complete') {
-          resolve();
-          return;
-        }
-        const checkState = () => {
-          if (!this.pc || this.pc.iceGatheringState === 'complete') {
-            if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
-            resolve();
-          }
-        };
-        this.pc.addEventListener('icegatheringstatechange', checkState);
-        setTimeout(() => {
-          if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
-          resolve();
-        }, 1000);
-      });
-
-      const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
-      const offerPayload = {
-        sdp: fullLocalSdp,
-        type: 'offer',
-        timestamp: Date.now(),
-        client: 'AgroEye Web Client',
-      };
-
-      // Write Offer payload to Firebase to trigger Raspberry Pi
+      // 5. Write Offer payload to Firebase to trigger Raspberry Pi
       await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
 
       this.startStatsLoop();
@@ -364,6 +376,13 @@ export class WebRTCStreamClient {
 
   public stop(): void {
     this.isManuallyStopped = true;
+    if (this.db) {
+      set(ref(this.db, `${this.sessionPath}/client_status`), {
+        status: 'disconnected',
+        timestamp: Date.now(),
+      }).catch(() => {});
+      set(ref(this.db, `${this.sessionPath}/answer`), null).catch(() => {});
+    }
     this.stopInternal();
   }
 }
