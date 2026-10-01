@@ -83,6 +83,10 @@ export class WebRTCStreamClient {
     this.db = db;
   }
 
+  public isConnected(): boolean {
+    return this.pc !== null && this.pc.connectionState === 'connected';
+  }
+
   public async start(): Promise<void> {
     this.isManuallyStopped = false;
     if (this.isConnecting) {

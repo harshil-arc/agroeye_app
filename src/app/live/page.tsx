@@ -120,9 +120,17 @@ export default function LiveCameraPage() {
     }
   }, []);
 
+  const lastConnectClickRef = useRef<number>(0);
+
   // Stream Initializer & Lifecycle Manager
   const startStream = useCallback(() => {
     if (!isPlaying || isOfflineMode) return;
+
+    const now = Date.now();
+    if (now - lastConnectClickRef.current < 1200) {
+      return;
+    }
+    lastConnectClickRef.current = now;
 
     const { db } = getFirebaseInstance();
     if (!db) {
@@ -171,19 +179,14 @@ export default function LiveCameraPage() {
   useEffect(() => {
     startStream();
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !webrtcClientRef.current?.isConnected()) {
         startStream();
       }
     };
-    const handleWindowFocus = () => {
-      startStream();
-    };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleWindowFocus);
       if (webrtcClientRef.current) {
         webrtcClientRef.current.stop();
         webrtcClientRef.current = null;
