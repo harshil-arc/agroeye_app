@@ -94,7 +94,7 @@ export class WebRTCStreamClient {
     this.pendingRemoteCandidates = [];
     this.currentOfferTimestamp = Date.now();
 
-    // Timeout: If Pi doesn't answer within 18s, update status
+    // Timeout: If Pi doesn't answer within 20s, update status
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.pc && this.pc.connectionState !== 'connected') {
@@ -109,15 +109,10 @@ export class WebRTCStreamClient {
           isRelayed: false,
         });
       }
-    }, 18000);
+    }, 20000);
 
     try {
-      // 1. Cleanly clear stale signaling nodes from previous sessions before starting
-      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
-      await set(ref(this.db, `${this.sessionPath}/answer`), null);
-
-      // 2. Initialize PeerConnection
+      // 1. Initialize PeerConnection
       this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
 
       this.pc.ontrack = (event) => {
@@ -128,6 +123,7 @@ export class WebRTCStreamClient {
           : (event.track ? new MediaStream([event.track]) : null);
 
         if (stream) {
+          console.log('[WebRTC] Video stream track received successfully');
           this.onStreamCallback(stream);
         }
       };
@@ -180,7 +176,12 @@ export class WebRTCStreamClient {
         } catch (e) {}
       }
 
-      // 3. Create Offer and Set Local Description
+      // 2. Clear old client candidates & answer
+      await set(ref(this.db, `${this.sessionPath}/client_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/pi_candidates`), null);
+      await set(ref(this.db, `${this.sessionPath}/answer`), null);
+
+      // 3. Create Offer
       const offer = await this.pc.createOffer({
         offerToReceiveVideo: true,
         offerToReceiveAudio: false,
@@ -221,8 +222,8 @@ export class WebRTCStreamClient {
         const answer = snapshot.val();
         if (!answer || !answer.sdp) return;
 
-        // Ignore stale answer from previous sessions
-        if (answer.timestamp && answer.timestamp < this.currentOfferTimestamp - 500) {
+        // Reject stale answer from older sessions
+        if (answer.timestamp && answer.timestamp < this.currentOfferTimestamp - 1000) {
           console.log('[WebRTC] Skipping stale answer from older session.');
           return;
         }
@@ -335,7 +336,7 @@ export class WebRTCStreamClient {
       });
 
       this.onStatsCallback({
-        fps: fps || (this.pc.connectionState === 'connected' ? 24 : 0),
+        fps,
         bitrateKbps,
         latencyMs,
         resolution,

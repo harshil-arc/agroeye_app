@@ -102,7 +102,7 @@ export default function LiveCameraPage() {
 
   const bindVideoMedia = useCallback((vid: HTMLVideoElement | null, stream: MediaStream | null) => {
     if (!vid) return;
-    if (stream) {
+    if (stream && stream.getVideoTracks().length > 0) {
       if (vid.srcObject !== stream) {
         vid.srcObject = stream;
       }
@@ -129,6 +129,7 @@ export default function LiveCameraPage() {
     }
 
     setIsRetryingStream(true);
+    setHasLiveStream(false);
 
     if (webrtcClientRef.current) {
       webrtcClientRef.current.stop();
@@ -139,19 +140,17 @@ export default function LiveCameraPage() {
       deviceId: 'pi_agroeye_01',
       db: db,
       onStream: (stream) => {
-        setHasLiveStream(true);
         setStreamMedia(stream);
         setIsRetryingStream(false);
+        setHasLiveStream(true);
         bindVideoMedia(videoElementRef.current, stream);
         bindVideoMedia(fullscreenVideoElementRef.current, stream);
       },
       onStatsUpdate: (stats) => {
         setStreamStats(stats);
-        if (stats.connectionState === 'connected') {
-          setHasLiveStream(true);
+        if (stats.connectionState === 'timeout' || stats.connectionState === 'failed' || stats.connectionState === 'closed') {
           setIsRetryingStream(false);
-        } else if (stats.connectionState === 'timeout' || stats.connectionState === 'failed' || stats.connectionState === 'closed') {
-          setIsRetryingStream(false);
+          setHasLiveStream(false);
         }
       },
       onError: () => {
@@ -182,7 +181,7 @@ export default function LiveCameraPage() {
     };
   }, [startStream]);
 
-  // Keep video source synced when toggling fullscreen
+  // Keep video source synced when toggling fullscreen or when media changes
   useEffect(() => {
     if (streamMedia && hasLiveStream) {
       bindVideoMedia(videoElementRef.current, streamMedia);
@@ -368,16 +367,22 @@ export default function LiveCameraPage() {
           ref={videoViewportRef}
           className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5 aspect-[16/10] sm:aspect-video flex items-center justify-center"
         >
-          {/* Active WebRTC Live Video Track (Always mounted to instantly receive incoming frames) */}
+          {/* Active WebRTC Live Video Track */}
           <video
             ref={videoElementRef}
             autoPlay
             playsInline
             muted
-            onLoadedData={() => {
+            onLoadedMetadata={() => {
+              if (streamMedia && streamMedia.getVideoTracks().length > 0) {
+                setHasLiveStream(true);
+              }
               if (videoElementRef.current) {
                 videoElementRef.current.play().catch(() => {});
               }
+            }}
+            onPlaying={() => {
+              setHasLiveStream(true);
             }}
             className={`absolute inset-0 w-full h-full object-cover bg-slate-950 transition-opacity duration-300 ${
               hasLiveStream ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
@@ -695,7 +700,7 @@ export default function LiveCameraPage() {
                 autoPlay
                 playsInline
                 muted
-                onLoadedData={() => {
+                onLoadedMetadata={() => {
                   if (fullscreenVideoElementRef.current) {
                     fullscreenVideoElementRef.current.play().catch(() => {});
                   }
