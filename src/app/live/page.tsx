@@ -159,17 +159,18 @@ export default function LiveCameraPage() {
         setStreamMedia(stream);
         setIsRetryingStream(false);
         setHasLiveStream(true);
-        setIsVideoRendering(true);
         bindVideoMedia(videoElementRef.current, stream);
         bindVideoMedia(fullscreenVideoElementRef.current, stream);
       },
       onStatsUpdate: (stats) => {
         setStreamStats(stats);
-        if (stats.fps > 0) {
+        if (stats.fps > 0 && stats.connectionState === 'connected') {
           setIsVideoRendering(true);
+          setIsRetryingStream(false);
         }
         if (stats.connectionState === 'timeout' || stats.connectionState === 'failed' || stats.connectionState === 'closed') {
           setIsRetryingStream(false);
+          setIsVideoRendering(false);
         }
       },
       onError: () => {
