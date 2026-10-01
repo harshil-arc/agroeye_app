@@ -112,10 +112,16 @@ export default function LiveCameraPage() {
       vid.playsInline = true;
       vid.setAttribute('playsinline', 'true');
       vid.setAttribute('webkit-playsinline', 'true');
-      vid.play().catch((err) => {
-        console.warn('Video play handler notice:', err);
-      });
+      const playPromise = vid.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Video play handler notice:', err);
+        });
+      }
     } else {
+      try {
+        vid.pause();
+      } catch (e) {}
       vid.srcObject = null;
     }
   }, []);

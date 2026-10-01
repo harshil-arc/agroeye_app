@@ -55,6 +55,7 @@ export class WebRTCStreamClient {
   private db: Database | null = null;
   private deviceId: string;
   private sessionPath: string;
+  private sessionId: string = '';
   private onStreamCallback: (stream: MediaStream) => void;
   private onStatsCallback?: (stats: WebRTCStreamStats) => void;
   private onErrorCallback?: (error: Error) => void;
@@ -67,7 +68,7 @@ export class WebRTCStreamClient {
   private prevBytesReceived = 0;
   private prevTimestamp = 0;
   private isConnecting = false;
-  private isManuallyStopped = false;
+  private isDisposed = false;
   private currentOfferTimestamp = 0;
 
   constructor(options: WebRTCOptions) {
@@ -87,8 +88,11 @@ export class WebRTCStreamClient {
     return this.pc !== null && this.pc.connectionState === 'connected';
   }
 
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
   public async start(): Promise<void> {
-    this.isManuallyStopped = false;
     if (this.isConnecting) {
       return;
     }
@@ -107,13 +111,18 @@ export class WebRTCStreamClient {
       return;
     }
 
+    // 1. Dispose old peer connection and state completely
     this.stopInternal();
+    this.isDisposed = false;
     this.isConnecting = true;
+    this.sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    this.currentOfferTimestamp = Date.now();
     this.processedPiCandidates.clear();
     this.pendingRemoteCandidates = [];
-    this.currentOfferTimestamp = Date.now();
 
-    // 1. Reset signaling in Firebase RTDB to clear any prior session state
+    const activeSessionId = this.sessionId;
+
+    // 2. Clean previous session nodes in Firebase RTDB with new session ID
     try {
       await Promise.all([
         set(ref(this.db, `${this.sessionPath}/answer`), null),
@@ -122,17 +131,20 @@ export class WebRTCStreamClient {
         set(ref(this.db, `${this.sessionPath}/offer`), null),
         set(ref(this.db, `${this.sessionPath}/client_status`), {
           status: 'requesting_stream',
+          session_id: activeSessionId,
           timestamp: this.currentOfferTimestamp,
         }),
       ]);
-      // Brief pause to allow Pi loop to clean previous peer session
-      await new Promise((r) => setTimeout(r, 300));
+      // Brief pause to allow Pi loop to detect reset and clean previous peer connection
+      await new Promise((r) => setTimeout(r, 200));
     } catch (e) {}
 
-    // Timeout: If Pi doesn't answer within 18s, update status
+    if (this.isDisposed || this.sessionId !== activeSessionId) return;
+
+    // 3. Setup Connection Timeout
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
-      if (this.pc && this.pc.connectionState !== 'connected') {
+      if (this.sessionId === activeSessionId && this.pc && this.pc.connectionState !== 'connected') {
         this.isConnecting = false;
         this.onStatsCallback?.({
           fps: 0,
@@ -147,36 +159,40 @@ export class WebRTCStreamClient {
     }, 18000);
 
     try {
-      // 2. Initialize PeerConnection
-      this.pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
+      // 4. Create a completely brand-new RTCPeerConnection for this session
+      const pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
+      this.pc = pc;
 
-      this.pc.ontrack = (event) => {
+      pc.ontrack = (event) => {
+        if (this.isDisposed || this.sessionId !== activeSessionId) return;
         if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
-        
-        const stream = (event.streams && event.streams[0]) 
-          ? event.streams[0] 
+
+        const stream = (event.streams && event.streams[0])
+          ? event.streams[0]
           : (event.track ? new MediaStream([event.track]) : null);
 
         if (stream) {
-          console.log('[WebRTC] Video stream track received successfully');
+          console.log('[WebRTC] Stream track received for session:', activeSessionId);
           this.onStreamCallback(stream);
         }
       };
 
-      this.pc.onicecandidate = (event) => {
-        if (event.candidate && this.db) {
+      pc.onicecandidate = (event) => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.db) return;
+        if (event.candidate) {
           const candidateData = {
             candidate: event.candidate.candidate,
             sdpMid: event.candidate.sdpMid || '0',
             sdpMLineIndex: event.candidate.sdpMLineIndex ?? 0,
+            session_id: activeSessionId,
           };
           const clientCandRef = push(ref(this.db, `${this.sessionPath}/client_candidates`));
           set(clientCandRef, candidateData).catch(() => {});
         }
       };
 
-      this.pc.onconnectionstatechange = () => {
-        if (!this.pc) return;
+      pc.onconnectionstatechange = () => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
         const state = this.pc.connectionState;
         if (state === 'connected') {
           if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
@@ -187,12 +203,12 @@ export class WebRTCStreamClient {
         this.emitStats();
       };
 
-      this.pc.oniceconnectionstatechange = () => {
-        if (!this.pc) return;
+      pc.oniceconnectionstatechange = () => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
         this.emitStats();
       };
 
-      const transceiver = this.pc.addTransceiver('video', { direction: 'recvonly' });
+      const transceiver = pc.addTransceiver('video', { direction: 'recvonly' });
       if (transceiver.receiver) {
         try {
           if ('playoutDelayHint' in transceiver.receiver) {
@@ -204,13 +220,19 @@ export class WebRTCStreamClient {
         } catch (e) {}
       }
 
-      // 3. Attach Answer & Remote ICE listeners BEFORE writing Offer
+      // 5. Attach Answer & Remote ICE listeners BEFORE writing Offer
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
         const answer = snapshot.val();
         if (!answer || !answer.sdp) return;
 
-        if (this.pc && (this.pc.signalingState === 'have-local-offer')) {
+        if (answer.session_id && answer.session_id !== activeSessionId) {
+          console.log('[WebRTC] Discarding answer from different session:', answer.session_id);
+          return;
+        }
+
+        if (this.pc.signalingState === 'have-local-offer') {
           try {
             await this.pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -218,9 +240,9 @@ export class WebRTCStreamClient {
                 type: answer.type || 'answer',
               })
             );
-            console.log('[WebRTC] Remote description (answer) set successfully');
+            console.log('[WebRTC] Remote description set for session:', activeSessionId);
 
-            // Flush pending remote ICE candidates
+            // Flush all pending remote ICE candidates received before remote description
             while (this.pendingRemoteCandidates.length > 0) {
               const pendingCand = this.pendingRemoteCandidates.shift();
               if (pendingCand && this.pc && this.pc.remoteDescription) {
@@ -230,15 +252,16 @@ export class WebRTCStreamClient {
               }
             }
           } catch (err) {
-            console.error('[WebRTC] Set remote description failed:', err);
+            console.error('[WebRTC] Error applying remote description:', err);
           }
         }
       });
 
       const piCandRef = ref(this.db, `${this.sessionPath}/pi_candidates`);
       this.piCandidatesUnsub = onValue(piCandRef, async (snapshot) => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
         const val = snapshot.val();
-        if (!val || !this.pc) return;
+        if (!val) return;
 
         const candidatesList = Array.isArray(val)
           ? val.filter(Boolean)
@@ -248,6 +271,10 @@ export class WebRTCStreamClient {
 
         for (const cand of candidatesList as any[]) {
           if (cand && cand.candidate && !this.processedPiCandidates.has(cand.candidate)) {
+            if (cand.session_id && cand.session_id !== activeSessionId) {
+              continue;
+            }
+
             this.processedPiCandidates.add(cand.candidate);
             const candInit: RTCIceCandidateInit = {
               candidate: cand.candidate,
@@ -261,20 +288,20 @@ export class WebRTCStreamClient {
               try {
                 await this.pc.addIceCandidate(new RTCIceCandidate(candInit));
               } catch (err) {
-                console.debug('[WebRTC] ICE candidate error:', err);
+                console.debug('[WebRTC] Remote candidate error:', err);
               }
             }
           }
         }
       });
 
-      // 4. Create Offer
-      const offer = await this.pc.createOffer({
+      // 6. Create Offer
+      const offer = await pc.createOffer({
         offerToReceiveVideo: true,
         offerToReceiveAudio: false,
       });
 
-      await this.pc.setLocalDescription(offer);
+      await pc.setLocalDescription(offer);
 
       // Wait briefly for initial local ICE candidates
       await new Promise<void>((resolve) => {
@@ -292,24 +319,29 @@ export class WebRTCStreamClient {
         setTimeout(() => {
           if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
           resolve();
-        }, 1000);
+        }, 800);
       });
+
+      if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
 
       const fullLocalSdp = this.pc.localDescription?.sdp || offer.sdp || '';
       const offerPayload = {
         sdp: fullLocalSdp,
         type: 'offer',
+        session_id: activeSessionId,
         timestamp: this.currentOfferTimestamp,
         client: 'AgroEye Web Client',
       };
 
-      // 5. Write Offer to Firebase to trigger Raspberry Pi
+      // 7. Write Offer to Firebase RTDB
       await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
 
       this.startStatsLoop();
     } catch (error: any) {
-      this.isConnecting = false;
-      this.onErrorCallback?.(error);
+      if (this.sessionId === activeSessionId) {
+        this.isConnecting = false;
+        this.onErrorCallback?.(error);
+      }
     }
   }
 
@@ -321,7 +353,7 @@ export class WebRTCStreamClient {
   }
 
   private async emitStats() {
-    if (!this.pc || !this.onStatsCallback) return;
+    if (!this.pc || !this.onStatsCallback || this.isDisposed) return;
 
     try {
       const stats = await this.pc.getStats();
@@ -366,6 +398,7 @@ export class WebRTCStreamClient {
   }
 
   private stopInternal(): void {
+    this.isDisposed = true;
     this.isConnecting = false;
     if (this.connectionTimeout) {
       clearTimeout(this.connectionTimeout);
@@ -385,22 +418,34 @@ export class WebRTCStreamClient {
     }
     if (this.pc) {
       try {
+        this.pc.ontrack = null;
+        this.pc.onicecandidate = null;
+        this.pc.onconnectionstatechange = null;
+        this.pc.oniceconnectionstatechange = null;
+        this.pc.getSenders().forEach((s) => {
+          try { s.track?.stop(); } catch (e) {}
+        });
+        this.pc.getReceivers().forEach((r) => {
+          try { r.track?.stop(); } catch (e) {}
+        });
         this.pc.close();
       } catch (e) {}
       this.pc = null;
     }
+    this.processedPiCandidates.clear();
+    this.pendingRemoteCandidates = [];
     this.prevBytesReceived = 0;
     this.prevTimestamp = 0;
   }
 
   public stop(): void {
-    this.isManuallyStopped = true;
-    if (this.db) {
+    if (this.db && this.sessionId) {
+      const closingSessionId = this.sessionId;
       set(ref(this.db, `${this.sessionPath}/client_status`), {
         status: 'disconnected',
+        session_id: closingSessionId,
         timestamp: Date.now(),
       }).catch(() => {});
-      set(ref(this.db, `${this.sessionPath}/answer`), null).catch(() => {});
     }
     this.stopInternal();
   }
