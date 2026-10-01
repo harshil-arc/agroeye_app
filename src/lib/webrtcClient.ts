@@ -231,6 +231,11 @@ export class WebRTCStreamClient {
         client: 'AgroEye Web Client',
       };
 
+      await set(ref(this.db, `${this.sessionPath}/client_status`), {
+        status: 'requesting_stream',
+        timestamp: Date.now(),
+      }).catch(() => {});
+
       // 4. Attach Answer & Remote ICE listeners with Stale Protection
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {

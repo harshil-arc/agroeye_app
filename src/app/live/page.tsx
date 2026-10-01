@@ -169,7 +169,20 @@ export default function LiveCameraPage() {
 
   useEffect(() => {
     startStream();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        startStream();
+      }
+    };
+    const handleWindowFocus = () => {
+      startStream();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
       if (webrtcClientRef.current) {
         webrtcClientRef.current.stop();
         webrtcClientRef.current = null;
@@ -348,6 +361,16 @@ export default function LiveCameraPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={startStream}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold uppercase tracking-wider active:scale-95 transition-all shadow-md ring-2 ring-emerald-600/30"
+              title="Connect or Reconnect to Live Camera Feed"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
+              <span>{isRetryingStream ? 'Connecting...' : hasLiveStream ? 'Reconnect Feed' : 'Connect'}</span>
+            </button>
+
             <div
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-headline text-xs font-bold uppercase tracking-wider ${
                 cameraControl.mode === 'manual'
@@ -401,6 +424,33 @@ export default function LiveCameraPage() {
               isVideoRendering ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
             }`}
           />
+
+          {/* Centered Connect Button Card when video is not actively rendering */}
+          {!isVideoRendering && (
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center text-white z-10 animate-in fade-in duration-200">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mb-3 shadow-xl">
+                <Video className={`w-7 h-7 ${isRetryingStream ? 'animate-pulse' : ''}`} />
+              </div>
+
+              <h3 className="font-headline text-sm sm:text-base font-bold text-white tracking-tight mb-1">
+                {isRetryingStream ? 'Connecting Live Video Stream...' : 'Live Optical Camera Ready'}
+              </h3>
+              <p className="text-[11px] text-slate-300 max-w-xs mb-3">
+                {isRetryingStream
+                  ? 'Negotiating WebRTC stream with field node (pi_agroeye_01)...'
+                  : 'Click below to stream live 30 FPS video with real-time horizontal servo pan.'}
+              </p>
+
+              <button
+                type="button"
+                onClick={startStream}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-lg ring-2 ring-emerald-500/50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRetryingStream ? 'animate-spin' : ''}`} />
+                <span>{isRetryingStream ? 'Connecting Live Feed...' : 'Connect'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Reticle HUD & Gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none z-20" />
@@ -689,6 +739,16 @@ export default function LiveCameraPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startStream}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                  title="Connect or Reconnect Feed"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin' : ''}`} />
+                  <span>{isRetryingStream ? 'Connecting...' : hasLiveStream ? 'Reconnect' : 'Connect'}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleSnapshot}

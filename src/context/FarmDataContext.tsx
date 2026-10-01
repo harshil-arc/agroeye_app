@@ -491,9 +491,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (parsedList.length > 0) {
-          const newest = parsedList[0];
-          setLatestImageUrl(newest.imageUrl);
-          previousLatestKeyRef.current = newest.id;
+          previousLatestKeyRef.current = parsedList[0].id;
         }
       }
 
@@ -690,9 +688,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           });
 
           if (parsedList.length > 0) {
-            const newest = parsedList[0];
-            setLatestImageUrl(newest.imageUrl);
-            previousLatestKeyRef.current = newest.id;
+            previousLatestKeyRef.current = parsedList[0].id;
           }
         }
       };
