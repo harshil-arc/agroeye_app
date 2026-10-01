@@ -236,17 +236,11 @@ export class WebRTCStreamClient {
         timestamp: Date.now(),
       }).catch(() => {});
 
-      // 4. Attach Answer & Remote ICE listeners with Stale Protection
+      // 4. Attach Answer & Remote ICE listeners
       const answerRef = ref(this.db, `${this.sessionPath}/answer`);
       this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
         const answer = snapshot.val();
         if (!answer || !answer.sdp) return;
-
-        // Reject stale answer from older sessions
-        if (answer.timestamp && answer.timestamp < this.currentOfferTimestamp - 1000) {
-          console.log('[WebRTC] Skipping stale answer from older session.');
-          return;
-        }
 
         if (this.pc && (this.pc.signalingState === 'have-local-offer')) {
           try {
@@ -256,11 +250,12 @@ export class WebRTCStreamClient {
                 type: answer.type || 'answer',
               })
             );
+            console.log('[WebRTC] Remote description (answer) set successfully');
 
             // Flush pending remote ICE candidates
             while (this.pendingRemoteCandidates.length > 0) {
               const pendingCand = this.pendingRemoteCandidates.shift();
-              if (pendingCand && this.pc) {
+              if (pendingCand && this.pc && this.pc.remoteDescription) {
                 try {
                   await this.pc.addIceCandidate(new RTCIceCandidate(pendingCand));
                 } catch (e) {}

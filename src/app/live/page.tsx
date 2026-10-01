@@ -145,6 +145,7 @@ export default function LiveCameraPage() {
         setStreamMedia(stream);
         setIsRetryingStream(false);
         setHasLiveStream(true);
+        setIsVideoRendering(true);
         bindVideoMedia(videoElementRef.current, stream);
         bindVideoMedia(fullscreenVideoElementRef.current, stream);
       },
