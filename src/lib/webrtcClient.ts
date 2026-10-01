@@ -141,7 +141,7 @@ export class WebRTCStreamClient {
 
     if (this.isDisposed || this.sessionId !== activeSessionId) return;
 
-    // 3. Setup Connection Timeout
+    // 3. Setup Connection Timeout (40s to allow camera warmup and cellular NAT traversal)
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.sessionId === activeSessionId && this.pc && this.pc.connectionState !== 'connected') {
@@ -156,7 +156,7 @@ export class WebRTCStreamClient {
           isRelayed: false,
         });
       }
-    }, 18000);
+    }, 40000);
 
     try {
       // 4. Create a completely brand-new RTCPeerConnection for this session
@@ -227,11 +227,6 @@ export class WebRTCStreamClient {
         const answer = snapshot.val();
         if (!answer || !answer.sdp) return;
 
-        if (answer.session_id && answer.session_id !== activeSessionId) {
-          console.log('[WebRTC] Discarding answer from different session:', answer.session_id);
-          return;
-        }
-
         if (this.pc.signalingState === 'have-local-offer') {
           try {
             await this.pc.setRemoteDescription(
@@ -271,10 +266,6 @@ export class WebRTCStreamClient {
 
         for (const cand of candidatesList as any[]) {
           if (cand && cand.candidate && !this.processedPiCandidates.has(cand.candidate)) {
-            if (cand.session_id && cand.session_id !== activeSessionId) {
-              continue;
-            }
-
             this.processedPiCandidates.add(cand.candidate);
             const candInit: RTCIceCandidateInit = {
               candidate: cand.candidate,
@@ -303,7 +294,7 @@ export class WebRTCStreamClient {
 
       await pc.setLocalDescription(offer);
 
-      // Wait briefly for initial local ICE candidates
+      // Wait for local ICE candidates (up to 1500ms or until complete)
       await new Promise<void>((resolve) => {
         if (!this.pc || this.pc.iceGatheringState === 'complete') {
           resolve();
@@ -319,7 +310,7 @@ export class WebRTCStreamClient {
         setTimeout(() => {
           if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
           resolve();
-        }, 800);
+        }, 1500);
       });
 
       if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
