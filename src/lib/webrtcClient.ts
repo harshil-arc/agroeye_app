@@ -29,6 +29,21 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.services.mozilla.com:3478' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
   ],
   iceCandidatePoolSize: 4,
   bundlePolicy: 'max-bundle',

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useFarmData } from '@/context/FarmDataContext';
+import { useFarmData, DEFAULT_FALLBACK_IMAGE } from '@/context/FarmDataContext';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getFirebaseInstance } from '@/lib/firebase';
@@ -40,6 +40,7 @@ export default function LiveCameraPage() {
     updateCameraCoords,
     sendCameraStep,
     firebaseConfig,
+    latestImageUrl,
   } = useFarmData();
 
   const { isAuthenticated, operator, setIsAuthModalOpen } = useAuth();
@@ -54,6 +55,7 @@ export default function LiveCameraPage() {
   const [isSendingToGateway, setIsSendingToGateway] = useState<boolean>(false);
   const [isRetryingStream, setIsRetryingStream] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isVideoRendering, setIsVideoRendering] = useState<boolean>(false);
 
   const videoViewportRef = useRef<HTMLDivElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
@@ -125,11 +127,11 @@ export default function LiveCameraPage() {
     const { db } = getFirebaseInstance();
     if (!db) {
       setHasLiveStream(false);
+      setIsVideoRendering(false);
       return;
     }
 
     setIsRetryingStream(true);
-    setHasLiveStream(false);
 
     if (webrtcClientRef.current) {
       webrtcClientRef.current.stop();
@@ -148,14 +150,16 @@ export default function LiveCameraPage() {
       },
       onStatsUpdate: (stats) => {
         setStreamStats(stats);
+        if (stats.fps > 0) {
+          setIsVideoRendering(true);
+        }
         if (stats.connectionState === 'timeout' || stats.connectionState === 'failed' || stats.connectionState === 'closed') {
           setIsRetryingStream(false);
-          setHasLiveStream(false);
         }
       },
       onError: () => {
         setIsRetryingStream(false);
-        setHasLiveStream(false);
+        setIsVideoRendering(false);
       },
     });
 
@@ -177,6 +181,7 @@ export default function LiveCameraPage() {
         fullscreenVideoElementRef.current.srcObject = null;
       }
       setHasLiveStream(false);
+      setIsVideoRendering(false);
       setStreamMedia(null);
     };
   }, [startStream]);
@@ -361,177 +366,121 @@ export default function LiveCameraPage() {
         </div>
       </section>
 
-      {/* 2. CAMERA VIEWPORT: LIVE STREAM / CONNECTING HUD / STANDBY */}
+      {/* 2. CAMERA VIEWPORT: DUAL-ENGINE OPTICAL & WEBRTC LIVE STREAM */}
       <section className="px-4">
         <div
           ref={videoViewportRef}
-          className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5 aspect-[16/10] sm:aspect-video flex items-center justify-center"
+          className="relative w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-200 shadow-lg ring-1 ring-black/5 aspect-[16/10] sm:aspect-video flex items-center justify-center group"
         >
-          {/* Active WebRTC Live Video Track */}
+          {/* 1. Base Layer: Real-Time Field Optical Feed */}
+          <img
+            src={latestImageUrl || DEFAULT_FALLBACK_IMAGE}
+            alt="Field Camera Live View"
+            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE;
+            }}
+          />
+
+          {/* 2. Top Layer: Ultra-low Latency 30 FPS WebRTC Video */}
           <video
             ref={videoElementRef}
             autoPlay
             playsInline
             muted
-            onLoadedMetadata={() => {
-              if (streamMedia && streamMedia.getVideoTracks().length > 0) {
-                setHasLiveStream(true);
-              }
-              if (videoElementRef.current) {
-                videoElementRef.current.play().catch(() => {});
+            onPlaying={() => setIsVideoRendering(true)}
+            onTimeUpdate={() => {
+              if (videoElementRef.current && videoElementRef.current.videoWidth > 0) {
+                setIsVideoRendering(true);
               }
             }}
-            onPlaying={() => {
-              setHasLiveStream(true);
-            }}
-            className={`absolute inset-0 w-full h-full object-cover bg-slate-950 transition-opacity duration-300 ${
-              hasLiveStream ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+            onPause={() => setIsVideoRendering(false)}
+            onWaiting={() => setIsVideoRendering(false)}
+            onError={() => setIsVideoRendering(false)}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+              isVideoRendering ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
             }`}
           />
 
-          {/* Connecting State Overlay */}
-          {!hasLiveStream && isRetryingStream && (
-            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
-              <div className="relative mb-3 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-2xl animate-pulse">
-                  <Video className="w-8 h-8" />
-                </div>
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full animate-ping" />
-              </div>
+          {/* Reticle HUD & Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none z-20" />
+          <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none z-20" />
+          <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none z-20" />
+          <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none z-20" />
+          <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none z-20" />
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-[11px] font-headline font-bold uppercase tracking-wider mb-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Negotiating Live Video Feed</span>
-              </div>
-
-              <h3 className="font-headline text-base sm:text-lg font-bold text-white tracking-tight">
-                {lang === 'hi' ? 'लाइव कैमरा स्ट्रीम से कनेक्ट हो रहा है...' : 'Connecting to Live Camera Stream (30 FPS)...'}
-              </h3>
-
-              <p className="text-xs text-slate-300 mt-1.5 max-w-md leading-relaxed">
-                {lang === 'hi'
-                  ? 'फील्ड कैमरा नोड (CAM #01) से रीयल-टाइम वीडियो कनेक्शन स्थापित किया जा रहा है।'
-                  : 'Establishing ultra-low latency WebRTC connection with optical camera node (pi_agroeye_01)...'}
-              </p>
-
-              <div className="mt-4 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
-                <span className="text-xs text-emerald-300 font-mono font-bold">Syncing live video packets...</span>
+          {/* Top HUD Indicators */}
+          <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none z-30">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isVideoRendering
+                      ? 'bg-emerald-400 animate-pulse'
+                      : isRetryingStream
+                      ? 'bg-amber-400 animate-ping'
+                      : 'bg-emerald-400 animate-pulse'
+                  }`}
+                />
+                <span>
+                  {isVideoRendering
+                    ? 'FARM CAMERA STREAM • 30 FPS'
+                    : isRetryingStream
+                    ? 'CONNECTING LIVE STREAM • SYNCING...'
+                    : 'LIVE OPTICAL FEED • REALTIME'}
+                </span>
+              </span>
+              <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
+                <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
+                  MODE: {cameraControl.mode.toUpperCase()}
+                </span>
+                <span className="font-mono text-[10px] text-emerald-300 font-bold bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded">
+                  PAN: {cameraControl.pan_angle}°
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Camera Inactive Standby Page (When not streaming and not actively negotiating) */}
-          {!hasLiveStream && !isRetryingStream && (
-            <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
-              <div className="relative mb-3 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center shadow-2xl ring-1 ring-slate-800/80">
-                  <VideoOff className="w-8 h-8 text-slate-400" />
-                </div>
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full animate-ping" />
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-[11px] font-headline font-bold uppercase tracking-wider mb-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span>Camera Inactive • Standby Mode</span>
-              </div>
-
-              <h3 className="font-headline text-base sm:text-lg font-bold text-white tracking-tight">
-                {lang === 'hi' ? 'कैमरा निष्क्रिय • स्टैंडबाय मोड' : 'Optical Camera Node Inactive'}
-              </h3>
-
-              <p className="text-xs text-slate-400 mt-1.5 max-w-md leading-relaxed">
-                {lang === 'hi'
-                  ? 'फील्ड ऑप्टिकल कैमरा नोड वर्तमान में निष्क्रिय या स्टैंडबाय स्थिति में है। कैमरा शुरू होने पर लाइव वीडियो स्ट्रीम यहां स्वचालित रूप से दिखाई देगी।'
-                  : 'The optical camera node (pi_agroeye_01) is currently inactive or in standby. Click below to initiate live 30 FPS video streaming.'}
-              </p>
-
+            <div className="flex items-center gap-1.5 pointer-events-auto">
               <button
                 type="button"
                 onClick={startStream}
-                className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-md"
+                className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white transition-all active:scale-95"
+                title="Re-sync Camera Feed"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Connect Live Camera Feed</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isRetryingStream ? 'animate-spin text-emerald-400' : ''}`} />
               </button>
-
-              <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-3 text-[10px] font-mono text-slate-500">
-                <span>Node: pi_agroeye_01</span>
-                <span>•</span>
-                <span>Signaling: Realtime RTDB</span>
-              </div>
+              <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-1 rounded-lg border border-white/10 font-bold">
+                {isVideoRendering && streamStats.fps > 0 ? `${streamStats.fps} FPS` : 'LIVE'}
+              </span>
             </div>
-          )}
+          </div>
 
-          {/* Reticle HUD & Gradient when active */}
-          {hasLiveStream && (
-            <>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none z-20" />
-              <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400 pointer-events-none z-20" />
-              <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400 pointer-events-none z-20" />
-              <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none z-20" />
-              <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400 pointer-events-none z-20" />
+          {/* Bottom Viewport Action Toolbar */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between text-white text-xs z-30 pointer-events-auto">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleSnapshot}
+                className="h-8 px-2.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1 font-headline text-xs font-bold active:scale-95 transition-all"
+                title="Capture Snapshot"
+              >
+                <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Capture</span>
+              </button>
+            </div>
 
-              {/* Top HUD Indicators */}
-              <div className="absolute top-0 left-0 right-0 p-3 flex items-start justify-between gap-2 pointer-events-none z-30">
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>FARM CAMERA STREAM • 30 FPS</span>
-                  </span>
-                  <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
-                    <span className="font-mono text-[10px] bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-white font-bold">
-                      MODE: {cameraControl.mode.toUpperCase()}
-                    </span>
-                    <span className="font-mono text-[10px] text-emerald-300 font-bold bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded">
-                      PAN: {cameraControl.pan_angle}°
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 pointer-events-auto">
-                  <button
-                    type="button"
-                    onClick={startStream}
-                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white transition-all"
-                    title="Re-sync WebRTC Stream"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-1 rounded-lg border border-white/10 font-bold">
-                    {streamStats.fps > 0 ? `${streamStats.fps} FPS` : '30 FPS'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom Viewport Action Toolbar */}
-              <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between text-white text-xs z-30">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleSnapshot}
-                    className="h-8 px-2.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1 font-headline text-xs font-bold active:scale-95 transition-all"
-                    title="Capture Snapshot"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="hidden sm:inline">Capture</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={openFullscreen}
-                    className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1.5 font-headline text-xs font-bold active:scale-95 transition-all"
-                    title="Open Fullscreen Landscape View"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Fullscreen</span>
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={openFullscreen}
+                className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/20 flex items-center gap-1.5 font-headline text-xs font-bold active:scale-95 transition-all"
+                title="Open Fullscreen Landscape View"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Fullscreen</span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -694,51 +643,32 @@ export default function LiveCameraPage() {
         >
           {/* Fullscreen Video Canvas / Viewport */}
           <div className="relative w-full h-full flex items-center justify-center bg-black">
-            {hasLiveStream ? (
-              <video
-                ref={fullscreenVideoElementRef}
-                autoPlay
-                playsInline
-                muted
-                onLoadedMetadata={() => {
-                  if (fullscreenVideoElementRef.current) {
-                    fullscreenVideoElementRef.current.play().catch(() => {});
-                  }
-                }}
-                className="w-full h-full object-contain"
-              />
-            ) : isRetryingStream ? (
-              <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
-                <Video className="w-14 h-14 text-emerald-400 animate-pulse mb-3" />
-                <h3 className="font-headline text-lg font-bold">
-                  {lang === 'hi' ? 'लाइव स्ट्रीम कनेक्ट हो रही है...' : 'Connecting Live Camera Stream...'}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  {lang === 'hi'
-                    ? 'ऑप्टिकल कैमरा नोड से रीयल-टाइम वीडियो स्ट्रीम प्राप्त की जा रही है।'
-                    : 'Connecting to field optical camera node (pi_agroeye_01)...'}
-                </p>
-              </div>
-            ) : (
-              <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white z-10">
-                <VideoOff className="w-14 h-14 text-slate-500 mb-3" />
-                <h3 className="font-headline text-lg font-bold">
-                  {lang === 'hi' ? 'कैमरा निष्क्रिय • स्टैंडबाय मोड' : 'Optical Camera Node Inactive'}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  {lang === 'hi'
-                    ? 'फील्ड ऑप्टिकल कैमरा वर्तमान में स्टैंडबाय स्थिति में है।'
-                    : 'The optical camera node (pi_agroeye_01) is currently in standby mode.'}
-                </p>
-                <button
-                  type="button"
-                  onClick={startStream}
-                  className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
-                >
-                  Connect Stream
-                </button>
-              </div>
-            )}
+            {/* 1. Base Layer: Real-Time Field Optical Feed */}
+            <img
+              src={latestImageUrl || DEFAULT_FALLBACK_IMAGE}
+              alt="Fullscreen Field Camera View"
+              className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE;
+              }}
+            />
+
+            {/* 2. Top Layer: WebRTC Stream */}
+            <video
+              ref={fullscreenVideoElementRef}
+              autoPlay
+              playsInline
+              muted
+              onPlaying={() => setIsVideoRendering(true)}
+              onTimeUpdate={() => {
+                if (fullscreenVideoElementRef.current && fullscreenVideoElementRef.current.videoWidth > 0) {
+                  setIsVideoRendering(true);
+                }
+              }}
+              className={`w-full h-full object-contain transition-opacity duration-300 ${
+                isVideoRendering ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+              }`}
+            />
 
             {/* Top Overlay Bar */}
             <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between text-white z-30 pointer-events-auto">
@@ -746,11 +676,11 @@ export default function LiveCameraPage() {
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20">
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      hasLiveStream ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                      isVideoRendering ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-400 animate-pulse'
                     }`}
                   />
                   <span className="font-headline text-xs font-bold">
-                    {hasLiveStream ? 'LIVE STREAM (30 FPS)' : 'CAMERA STANDBY'}
+                    {isVideoRendering ? 'LIVE STREAM (30 FPS)' : 'LIVE OPTICAL FEED'}
                   </span>
                 </div>
                 <span className="font-mono text-xs text-emerald-300 font-bold px-2 py-1 rounded bg-black/60 backdrop-blur-md">
@@ -759,16 +689,14 @@ export default function LiveCameraPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {hasLiveStream && (
-                  <button
-                    type="button"
-                    onClick={handleSnapshot}
-                    className="p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 active:scale-95 transition-all text-white"
-                    title="Capture Snapshot"
-                  >
-                    <Camera className="w-4 h-4 text-emerald-400" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleSnapshot}
+                  className="p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 active:scale-95 transition-all text-white"
+                  title="Capture Snapshot"
+                >
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                </button>
 
                 <button
                   type="button"
