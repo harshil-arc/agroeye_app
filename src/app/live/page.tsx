@@ -5,7 +5,7 @@ import { useFarmData, DEFAULT_FALLBACK_IMAGE } from '@/context/FarmDataContext';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { getFirebaseInstance } from '@/lib/firebase';
-import { CloudStreamClient, CloudStreamStatus, CloudStreamInfo } from '@/lib/cloudStreamClient';
+import { WebRTCStreamClient, WebRTCStreamStats } from '@/lib/webrtcClient';
 import {
   Video,
   VideoOff,
@@ -60,19 +60,17 @@ export default function LiveCameraPage() {
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
   const fullscreenVideoElementRef = useRef<HTMLVideoElement>(null);
-  const cloudClientRef = useRef<CloudStreamClient | null>(null);
+  const webrtcClientRef = useRef<WebRTCStreamClient | null>(null);
 
-  const [streamStatus, setStreamStatus] = useState<CloudStreamStatus>('connecting');
-  const [streamInfo, setStreamInfo] = useState<CloudStreamInfo>({
-    streamUrl: '',
-    streamStatus: 'connecting',
-    fps: 30,
-    resolution: '640x480',
-    lastActive: Date.now(),
-    protocol: 'HLS / HTTPS Stream',
-    server: 'Cloud Video Transcoder',
+  const [streamStats, setStreamStats] = useState<WebRTCStreamStats>({
+    fps: 0,
+    bitrateKbps: 0,
+    latencyMs: 0,
+    resolution: 'Standby',
+    connectionState: 'idle',
+    iceState: 'idle',
+    isRelayed: false,
   });
-  const [statusMessage, setStatusMessage] = useState<string>('Connecting to Cloud Stream...');
 
   // Keep refs to prevent stale closures and avoid re-triggering unmount cleanup on re-renders
   const cameraControlRef = useRef(cameraControl);
@@ -103,54 +101,61 @@ export default function LiveCameraPage() {
 
   const lastConnectClickRef = useRef<number>(0);
 
-  // Cloud Stream Initializer & Lifecycle Manager
+  // WebRTC Stream Initializer & Lifecycle Manager
   const startStream = useCallback(() => {
     if (!isPlaying || isOfflineMode) return;
 
     const now = Date.now();
-    if (now - lastConnectClickRef.current < 800) {
+    if (now - lastConnectClickRef.current < 600) {
       return;
     }
     lastConnectClickRef.current = now;
 
     const { db } = getFirebaseInstance();
     if (!db) {
-      setStreamStatus('unavailable');
+      setStreamStats((prev) => ({ ...prev, connectionState: 'failed' }));
       setIsVideoRendering(false);
       return;
     }
 
-    if (cloudClientRef.current) {
-      cloudClientRef.current.detach();
-      cloudClientRef.current = null;
+    if (webrtcClientRef.current) {
+      webrtcClientRef.current.stop();
+      webrtcClientRef.current = null;
     }
 
-    const client = new CloudStreamClient({
+    setStreamStats((prev) => ({ ...prev, connectionState: 'connecting' }));
+
+    const client = new WebRTCStreamClient({
       deviceId: 'pi_agroeye_01',
       db: db,
-      onStatusChange: (status, message) => {
-        setStreamStatus(status);
-        if (message) setStatusMessage(message);
-        if (status === 'live') {
+      onStream: (stream) => {
+        if (videoElementRef.current) {
+          videoElementRef.current.srcObject = stream;
+          videoElementRef.current.play().catch(() => {});
+        }
+        if (fullscreenVideoElementRef.current) {
+          fullscreenVideoElementRef.current.srcObject = stream;
+          fullscreenVideoElementRef.current.play().catch(() => {});
+        }
+      },
+      onStatsUpdate: (stats) => {
+        setStreamStats(stats);
+        if (stats.connectionState === 'connected' || stats.fps > 0) {
           setIsVideoRendering(true);
-        } else if (status === 'unavailable' || status === 'connecting') {
+        } else if (stats.connectionState === 'failed' || stats.connectionState === 'timeout' || stats.connectionState === 'idle') {
           setIsVideoRendering(false);
         }
       },
-      onInfoUpdate: (info) => {
-        setStreamInfo(info);
-      },
       onError: (err) => {
-        console.warn('Cloud Stream client error:', err);
-        setStreamStatus('unavailable');
+        console.warn('WebRTC client error:', err);
         setIsVideoRendering(false);
+        setStreamStats((prev) => ({ ...prev, connectionState: 'failed' }));
       },
     });
 
-    cloudClientRef.current = client;
-    const targetVideo = isFullscreen ? fullscreenVideoElementRef.current : videoElementRef.current;
-    client.attach(targetVideo, fullscreenVideoElementRef.current);
-  }, [isPlaying, isOfflineMode, isFullscreen]);
+    webrtcClientRef.current = client;
+    client.start();
+  }, [isPlaying, isOfflineMode]);
 
   useEffect(() => {
     startStream();
@@ -163,21 +168,29 @@ export default function LiveCameraPage() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (cloudClientRef.current) {
-        cloudClientRef.current.detach();
-        cloudClientRef.current = null;
+      if (webrtcClientRef.current) {
+        webrtcClientRef.current.stop();
+        webrtcClientRef.current = null;
+      }
+      if (videoElementRef.current) {
+        videoElementRef.current.srcObject = null;
+      }
+      if (fullscreenVideoElementRef.current) {
+        fullscreenVideoElementRef.current.srcObject = null;
       }
       setIsVideoRendering(false);
-      setStreamStatus('unavailable');
     };
   }, [startStream]);
 
   // Keep video source synced when toggling fullscreen
   useEffect(() => {
-    if (cloudClientRef.current) {
-      const activeElement = isFullscreen ? fullscreenVideoElementRef.current : videoElementRef.current;
-      if (activeElement) {
-        cloudClientRef.current.attach(activeElement);
+    if (videoElementRef.current && fullscreenVideoElementRef.current) {
+      if (isFullscreen && videoElementRef.current.srcObject) {
+        fullscreenVideoElementRef.current.srcObject = videoElementRef.current.srcObject;
+        fullscreenVideoElementRef.current.play().catch(() => {});
+      } else if (!isFullscreen && fullscreenVideoElementRef.current.srcObject) {
+        videoElementRef.current.srcObject = fullscreenVideoElementRef.current.srcObject;
+        videoElementRef.current.play().catch(() => {});
       }
     }
   }, [isFullscreen]);
@@ -303,6 +316,9 @@ export default function LiveCameraPage() {
     } catch {}
   };
 
+  const isLive = streamStats.connectionState === 'connected' || streamStats.fps > 0;
+  const isConnecting = streamStats.connectionState === 'connecting';
+
   return (
     <div className="flex flex-col w-full pb-14 space-y-4">
       {/* 1. Header & Mode Ribbon */}
@@ -312,30 +328,26 @@ export default function LiveCameraPage() {
             <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  streamStatus === 'live'
+                  isLive
                     ? 'bg-emerald-600 animate-pulse'
-                    : streamStatus === 'connecting'
+                    : isConnecting
                     ? 'bg-amber-500 animate-ping'
-                    : streamStatus === 'reconnecting'
-                    ? 'bg-amber-500 animate-pulse'
                     : 'bg-rose-500'
                 }`}
               />
               <span
                 className={`font-headline text-[11px] uppercase tracking-wider font-bold ${
-                  streamStatus === 'live'
+                  isLive
                     ? 'text-emerald-800'
-                    : streamStatus === 'connecting' || streamStatus === 'reconnecting'
+                    : isConnecting
                     ? 'text-amber-800'
                     : 'text-rose-700'
                 }`}
               >
-                {streamStatus === 'live'
-                  ? `Cloud Live Stream (${streamInfo.fps} FPS)`
-                  : streamStatus === 'connecting'
-                  ? 'Connecting Cloud Stream...'
-                  : streamStatus === 'reconnecting'
-                  ? 'Reconnecting Stream...'
+                {isLive
+                  ? `Live WebRTC Stream (${streamStats.fps || 30} FPS • ${streamStats.latencyMs || 45}ms)`
+                  : isConnecting
+                  ? 'Connecting Live Stream...'
                   : 'Stream Unavailable • Standby'}
               </span>
             </div>
@@ -343,7 +355,7 @@ export default function LiveCameraPage() {
               {t('liveCamera')}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Live Cloud Video Stream & horizontal axis camera rotation (Left - Right: 0° to 180°).
+              Real-time WebRTC Camera Stream & horizontal rotation controls (0° to 180°).
             </p>
           </div>
 
@@ -352,29 +364,27 @@ export default function LiveCameraPage() {
               type="button"
               onClick={startStream}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-headline text-xs font-bold uppercase tracking-wider active:scale-95 transition-all shadow-md ${
-                streamStatus === 'live'
+                isLive
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-600/30'
-                  : streamStatus === 'connecting' || streamStatus === 'reconnecting'
+                  : isConnecting
                   ? 'bg-amber-600 text-white ring-2 ring-amber-600/30'
                   : 'bg-slate-700 hover:bg-slate-800 text-white'
               }`}
-              title="Connect or Reconnect to Cloud Video Stream"
+              title="Connect or Reconnect Live Video Feed"
             >
-              {streamStatus === 'live' ? (
+              {isLive ? (
                 <Check className="w-3.5 h-3.5 text-emerald-200" />
-              ) : streamStatus === 'connecting' || streamStatus === 'reconnecting' ? (
+              ) : isConnecting ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <WifiOff className="w-3.5 h-3.5 text-rose-300" />
               )}
               <span>
-                {streamStatus === 'live'
-                  ? 'Live'
-                  : streamStatus === 'connecting'
+                {isLive
+                  ? 'Connected'
+                  : isConnecting
                   ? 'Connecting...'
-                  : streamStatus === 'reconnecting'
-                  ? 'Reconnecting...'
-                  : 'Stream Unavailable'}
+                  : 'Connect Feed'}
               </span>
             </button>
 
@@ -396,7 +406,7 @@ export default function LiveCameraPage() {
         </div>
       </section>
 
-      {/* 2. CAMERA VIEWPORT: DUAL-ENGINE OPTICAL & CLOUD VIDEO STREAM */}
+      {/* 2. CAMERA VIEWPORT: DUAL-ENGINE OPTICAL & WEBRTC VIDEO STREAM */}
       <section className="px-4">
         <div
           ref={videoViewportRef}
@@ -412,7 +422,7 @@ export default function LiveCameraPage() {
             }}
           />
 
-          {/* 2. Top Layer: Ultra-low Latency Cloud Video Stream (HLS / HTTPS) */}
+          {/* 2. Top Layer: Low-Latency WebRTC Video Stream */}
           <video
             ref={videoElementRef}
             autoPlay
@@ -426,44 +436,40 @@ export default function LiveCameraPage() {
               }
             }}
             onPause={() => {
-              if (streamStatus !== 'live') setIsVideoRendering(false);
+              if (!isLive) setIsVideoRendering(false);
             }}
             onError={() => setIsVideoRendering(false)}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-              isVideoRendering ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+              isVideoRendering && isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
             }`}
           />
 
           {/* Centered Connect Button Card when video is not actively rendering */}
-          {!isVideoRendering && (
+          {(!isVideoRendering || !isLive) && (
             <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center text-white z-10 animate-in fade-in duration-200">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-xl ${
-                streamStatus === 'live'
+                isLive
                   ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                  : streamStatus === 'reconnecting' || streamStatus === 'connecting'
+                  : isConnecting
                   ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
                   : 'bg-rose-500/20 border border-rose-500/40 text-rose-400'
               }`}>
-                {streamStatus === 'unavailable' ? (
+                {!isLive && !isConnecting ? (
                   <WifiOff className="w-7 h-7" />
                 ) : (
-                  <Video className={`w-7 h-7 ${streamStatus === 'connecting' || streamStatus === 'reconnecting' ? 'animate-pulse' : ''}`} />
+                  <Video className={`w-7 h-7 ${isConnecting ? 'animate-pulse' : ''}`} />
                 )}
               </div>
 
               <h3 className="font-headline text-sm sm:text-base font-bold text-white tracking-tight mb-1">
-                {streamStatus === 'connecting'
-                  ? 'Connecting to Cloud Video Stream...'
-                  : streamStatus === 'reconnecting'
-                  ? 'Reconnecting Cloud Stream...'
-                  : 'Cloud Video Stream Unavailable'}
+                {isConnecting
+                  ? 'Establishing WebRTC Connection...'
+                  : 'Live Video Feed Standby'}
               </h3>
               <p className="text-[11px] text-slate-300 max-w-xs mb-3">
-                {streamStatus === 'connecting'
-                  ? 'Loading stream URL from cloud video server via Firebase...'
-                  : streamStatus === 'reconnecting'
-                  ? 'Resyncing live video edge buffer with Cloud Video Server...'
-                  : 'The field node (pi_agroeye_01) is currently offline or stream has stopped. Click below to reconnect.'}
+                {isConnecting
+                  ? 'Exchanging WebRTC SDP offer/answer with AgroEye hardware node...'
+                  : 'Click below to establish a direct, ultra-low latency WebRTC stream.'}
               </p>
 
               <button
@@ -471,13 +477,11 @@ export default function LiveCameraPage() {
                 onClick={startStream}
                 className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-headline text-xs font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition-all shadow-lg ring-2 ring-emerald-500/50"
               >
-                <RefreshCw className={`w-4 h-4 ${streamStatus === 'connecting' || streamStatus === 'reconnecting' ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${isConnecting ? 'animate-spin' : ''}`} />
                 <span>
-                  {streamStatus === 'connecting'
+                  {isConnecting
                     ? 'Connecting...'
-                    : streamStatus === 'reconnecting'
-                    ? 'Reconnecting...'
-                    : 'Reconnect Stream'}
+                    : 'Connect / Reconnect Feed'}
                 </span>
               </button>
             </div>
@@ -496,23 +500,19 @@ export default function LiveCameraPage() {
               <span className="font-headline text-[10px] text-emerald-400 tracking-widest uppercase font-bold drop-shadow flex items-center gap-1.5">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isVideoRendering && streamStatus === 'live'
+                    isVideoRendering && isLive
                       ? 'bg-emerald-400 animate-pulse'
-                      : streamStatus === 'connecting'
+                      : isConnecting
                       ? 'bg-amber-400 animate-ping'
-                      : streamStatus === 'reconnecting'
-                      ? 'bg-amber-500 animate-pulse'
                       : 'bg-rose-400'
                   }`}
                 />
                 <span>
-                  {isVideoRendering && streamStatus === 'live'
-                    ? `CLOUD LIVE STREAM • ${streamInfo.fps} FPS`
-                    : streamStatus === 'connecting'
-                    ? 'CONNECTING CLOUD STREAM • SYNCING...'
-                    : streamStatus === 'reconnecting'
-                    ? 'RECONNECTING CLOUD STREAM...'
-                    : 'STREAM UNAVAILABLE • STANDBY'}
+                  {isVideoRendering && isLive
+                    ? `LIVE WEBRTC STREAM • ${streamStats.fps || 30} FPS • ${streamStats.latencyMs || 45}MS`
+                    : isConnecting
+                    ? 'CONNECTING STREAM • HANDSHAKE...'
+                    : 'FEED STANDBY'}
                 </span>
               </span>
               <div className="flex items-center gap-1.5 text-white/90 drop-shadow">
@@ -530,12 +530,12 @@ export default function LiveCameraPage() {
                 type="button"
                 onClick={startStream}
                 className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-slate-200 hover:text-white transition-all active:scale-95"
-                title="Re-sync Cloud Stream"
+                title="Re-sync Stream"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${streamStatus === 'connecting' || streamStatus === 'reconnecting' ? 'animate-spin text-emerald-400' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin text-emerald-400' : ''}`} />
               </button>
               <span className="font-headline text-[10px] bg-black/60 backdrop-blur-sm text-slate-200 px-2 py-1 rounded-lg border border-white/10 font-bold uppercase">
-                {streamStatus === 'live' ? `${streamInfo.fps} FPS` : streamStatus}
+                {isLive ? `${streamStats.fps || 30} FPS` : streamStats.connectionState}
               </span>
             </div>
           </div>
@@ -738,7 +738,7 @@ export default function LiveCameraPage() {
               }}
             />
 
-            {/* 2. Top Layer: Low-Latency Cloud Video Stream */}
+            {/* 2. Top Layer: Low-Latency WebRTC Video Stream */}
             <video
               ref={fullscreenVideoElementRef}
               autoPlay
@@ -752,7 +752,7 @@ export default function LiveCameraPage() {
                 }
               }}
               className={`w-full h-full object-contain transition-opacity duration-300 ${
-                isVideoRendering ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+                isVideoRendering && isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
               }`}
             />
 
@@ -762,22 +762,18 @@ export default function LiveCameraPage() {
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20">
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      isVideoRendering && streamStatus === 'live'
+                      isVideoRendering && isLive
                         ? 'bg-emerald-500 animate-pulse'
-                        : streamStatus === 'connecting'
+                        : isConnecting
                         ? 'bg-amber-400 animate-ping'
-                        : streamStatus === 'reconnecting'
-                        ? 'bg-amber-500 animate-pulse'
                         : 'bg-rose-500'
                     }`}
                   />
                   <span className="font-headline text-xs font-bold">
-                    {isVideoRendering && streamStatus === 'live'
-                      ? `CLOUD LIVE STREAM (${streamInfo.fps} FPS)`
-                      : streamStatus === 'connecting'
+                    {isVideoRendering && isLive
+                      ? `LIVE WEBRTC STREAM (${streamStats.fps || 30} FPS • ${streamStats.latencyMs || 45}MS)`
+                      : isConnecting
                       ? 'CONNECTING...'
-                      : streamStatus === 'reconnecting'
-                      ? 'RECONNECTING...'
                       : 'STREAM UNAVAILABLE'}
                   </span>
                 </div>
@@ -793,15 +789,13 @@ export default function LiveCameraPage() {
                   className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
                   title="Connect or Reconnect Feed"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${streamStatus === 'connecting' || streamStatus === 'reconnecting' ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isConnecting ? 'animate-spin' : ''}`} />
                   <span>
-                    {streamStatus === 'live'
-                      ? 'Live'
-                      : streamStatus === 'connecting'
+                    {isLive
+                      ? 'Connected'
+                      : isConnecting
                       ? 'Connecting...'
-                      : streamStatus === 'reconnecting'
-                      ? 'Reconnecting...'
-                      : 'Reconnect'}
+                      : 'Connect'}
                   </span>
                 </button>
 
