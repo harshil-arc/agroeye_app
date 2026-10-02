@@ -150,13 +150,12 @@ export class WebRTCStreamClient {
           timestamp: this.currentOfferTimestamp,
         }),
       ]);
-      // Brief pause to allow Pi loop to detect reset and clean previous peer connection
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 100));
     } catch (e) {}
 
     if (this.isDisposed || this.sessionId !== activeSessionId) return;
 
-    // 3. Setup Connection Timeout (40s to allow camera warmup and cellular NAT traversal)
+    // 3. Setup Connection Timeout (40s)
     if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
     this.connectionTimeout = setTimeout(() => {
       if (this.sessionId === activeSessionId && this.pc && this.pc.connectionState !== 'connected') {
@@ -174,7 +173,7 @@ export class WebRTCStreamClient {
     }, 40000);
 
     try {
-      // 4. Create a completely brand-new RTCPeerConnection for this session
+      // 4. Create brand-new RTCPeerConnection
       const pc = new RTCPeerConnection(DEFAULT_ICE_SERVERS);
       this.pc = pc;
 
@@ -212,7 +211,7 @@ export class WebRTCStreamClient {
         if (state === 'connected') {
           if (this.connectionTimeout) clearTimeout(this.connectionTimeout);
           this.isConnecting = false;
-        } else if (state === 'failed' || state === 'closed' || state === 'disconnected') {
+        } else if (state === 'failed' || state === 'closed') {
           this.isConnecting = false;
         }
         this.emitStats();
@@ -235,14 +234,24 @@ export class WebRTCStreamClient {
         } catch (e) {}
       }
 
-      // 5. Attach Answer & Remote ICE listeners BEFORE writing Offer
-      const answerRef = ref(this.db, `${this.sessionPath}/answer`);
-      this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
-        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
-        const answer = snapshot.val();
-        if (!answer || !answer.sdp) return;
+      // 5. Asynchronous SDP Answer processor that handles any signaling timing / race conditions
+      let pendingAnswer: any = null;
+      let remoteDescriptionApplied = false;
 
-        if (this.pc.signalingState === 'have-local-offer') {
+      const applyAnswerIfReady = async (answer: any) => {
+        if (!answer || !answer.sdp || remoteDescriptionApplied || this.isDisposed || this.sessionId !== activeSessionId || !this.pc) {
+          return;
+        }
+
+        // Wait until pc is in 'have-local-offer' state
+        for (let i = 0; i < 40; i++) {
+          if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
+          if (this.pc.signalingState === 'have-local-offer') break;
+          if (this.pc.signalingState === 'stable' && this.pc.remoteDescription) return;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+
+        if (this.pc && this.pc.signalingState === 'have-local-offer') {
           try {
             await this.pc.setRemoteDescription(
               new RTCSessionDescription({
@@ -250,9 +259,10 @@ export class WebRTCStreamClient {
                 type: answer.type || 'answer',
               })
             );
-            console.log('[WebRTC] Remote description set for session:', activeSessionId);
+            remoteDescriptionApplied = true;
+            console.log('[WebRTC] Remote description set successfully for session:', activeSessionId);
 
-            // Flush all pending remote ICE candidates received before remote description
+            // Flush all pending remote ICE candidates
             while (this.pendingRemoteCandidates.length > 0) {
               const pendingCand = this.pendingRemoteCandidates.shift();
               if (pendingCand && this.pc && this.pc.remoteDescription) {
@@ -265,6 +275,19 @@ export class WebRTCStreamClient {
             console.error('[WebRTC] Error applying remote description:', err);
           }
         }
+      };
+
+      const answerRef = ref(this.db, `${this.sessionPath}/answer`);
+      this.answerListenerUnsub = onValue(answerRef, async (snapshot) => {
+        if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
+        const answer = snapshot.val();
+        if (!answer || !answer.sdp) return;
+
+        const answerSessionId = answer.session_id || answer.sessionId;
+        if (answerSessionId && answerSessionId !== activeSessionId) return;
+
+        pendingAnswer = answer;
+        await applyAnswerIfReady(answer);
       });
 
       const piCandRef = ref(this.db, `${this.sessionPath}/pi_candidates`);
@@ -301,7 +324,7 @@ export class WebRTCStreamClient {
         }
       });
 
-      // 6. Create Offer
+      // 6. Create Offer & set local description
       const offer = await pc.createOffer({
         offerToReceiveVideo: true,
         offerToReceiveAudio: false,
@@ -309,7 +332,7 @@ export class WebRTCStreamClient {
 
       await pc.setLocalDescription(offer);
 
-      // Wait for local ICE candidates (up to 1500ms or until complete)
+      // Brief pause for initial host/srflx candidates (max 200ms)
       await new Promise<void>((resolve) => {
         if (!this.pc || this.pc.iceGatheringState === 'complete') {
           resolve();
@@ -325,7 +348,7 @@ export class WebRTCStreamClient {
         setTimeout(() => {
           if (this.pc) this.pc.removeEventListener('icegatheringstatechange', checkState);
           resolve();
-        }, 1500);
+        }, 200);
       });
 
       if (this.isDisposed || this.sessionId !== activeSessionId || !this.pc) return;
@@ -341,6 +364,22 @@ export class WebRTCStreamClient {
 
       // 7. Write Offer to Firebase RTDB
       await set(ref(this.db, `${this.sessionPath}/offer`), offerPayload);
+
+      // 8. If answer already arrived during offer creation, apply it immediately
+      if (pendingAnswer) {
+        await applyAnswerIfReady(pendingAnswer);
+      } else {
+        try {
+          const snap = await get(answerRef);
+          const ans = snap.val();
+          if (ans && ans.sdp) {
+            const ansSid = ans.session_id || ans.sessionId;
+            if (!ansSid || ansSid === activeSessionId) {
+              await applyAnswerIfReady(ans);
+            }
+          }
+        } catch (e) {}
+      }
 
       this.startStatsLoop();
     } catch (error: any) {
