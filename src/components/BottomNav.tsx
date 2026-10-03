@@ -70,6 +70,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               onClick={() => handleNavClick(item.href)}
               className={`group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-all ${
                 item.isActive

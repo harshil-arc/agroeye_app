@@ -581,21 +581,12 @@ export default function LiveCameraPage() {
     addLog('success', 'Ping request sent to Firebase.');
   };
 
-  // Auto-connect on mount and handle tab visibility
+  // Stream lifecycle cleanup on component unmount (manual connection triggered only by user click)
   useEffect(() => {
-    startStream();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        startStream();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopStream(true);
     };
-  }, [startStream, stopStream]);
+  }, [stopStream]);
 
   // Sync fullscreen video source
   useEffect(() => {

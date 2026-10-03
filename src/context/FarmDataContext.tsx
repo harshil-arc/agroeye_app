@@ -620,10 +620,10 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firebaseConfig.databaseURL]);
 
-  // Initial fetch and auto-polling every 2.5 seconds for instant telemetry & detection updates
+  // Initial fetch on mount with gentle fallback (real-time WebSocket listeners handle instant push updates)
   useEffect(() => {
     refreshFirebaseData();
-    const interval = setInterval(refreshFirebaseData, 2500);
+    const interval = setInterval(refreshFirebaseData, 20000);
     return () => clearInterval(interval);
   }, [refreshFirebaseData]);
 

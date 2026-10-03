@@ -64,7 +64,7 @@ export default function Header() {
         <div className="h-16 px-4 max-w-7xl mx-auto flex items-center justify-between gap-2">
           {/* 1. Brand & Multi-Field Selector */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
+            <Link href="/" prefetch={true} className="flex items-center gap-2 flex-shrink-0 group">
               <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-headline font-bold text-lg shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform">
                 🌱
               </div>
@@ -159,6 +159,7 @@ export default function Header() {
             {mounted && isAuthenticated ? (
               <Link
                 href="/profile"
+                prefetch={true}
                 className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-headline font-bold transition-all"
                 title="View Profile & Farm Settings"
               >
@@ -172,6 +173,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
+                prefetch={true}
                 className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
                 title="Login or Register Account"
               >
