@@ -8,6 +8,12 @@ import { Home, Video, Sun, ScanLine, User } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { detections, cameraControl, setCameraMode } = useFarmData();
 
   if (pathname === '/login') return null;
@@ -85,7 +91,7 @@ export default function BottomNav() {
                   </>
                 )}
 
-                {typeof item.count === 'number' && item.count > 0 && (
+                {mounted && typeof item.count === 'number' && item.count > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white font-headline text-[10px] flex items-center justify-center font-bold shadow-xs">
                     {item.count}
                   </span>

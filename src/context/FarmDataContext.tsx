@@ -275,57 +275,17 @@ function transformFirebaseAlert(key: string, raw: any, index: number): AIDetecti
 }
 
 export function FarmDataProvider({ children }: { children: React.ReactNode }) {
-  // Offline-first restoration
-  const [sensors, setSensors] = useState<SensorReadings>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('agroeye_offline_sensors');
-      if (cached) {
-        try { return JSON.parse(cached); } catch {}
-      }
-    }
-    return initialSensorReadings;
-  });
-
-  const [sensorHistory, setSensorHistory] = useState<HistoricalSensorPoint[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('agroeye_offline_sensor_history');
-      if (cached) {
-        try { return JSON.parse(cached); } catch {}
-      }
-    }
-    return [];
-  });
-
-  const [deletedDetectionIds, setDeletedDetectionIds] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('agroeye_deleted_detection_ids');
-      if (cached) {
-        try { return JSON.parse(cached); } catch {}
-      }
-    }
-    return [];
-  });
+  // Static initial defaults to ensure identical SSR & initial Client render
+  const [sensors, setSensors] = useState<SensorReadings>(initialSensorReadings);
+  const [sensorHistory, setSensorHistory] = useState<HistoricalSensorPoint[]>([]);
+  const [deletedDetectionIds, setDeletedDetectionIds] = useState<string[]>([]);
 
   const deletedDetectionIdsRef = useRef<string[]>(deletedDetectionIds);
   useEffect(() => {
     deletedDetectionIdsRef.current = deletedDetectionIds;
   }, [deletedDetectionIds]);
 
-  const [detections, setDetections] = useState<AIDetection[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('agroeye_offline_detections');
-      const delCached = localStorage.getItem('agroeye_deleted_detection_ids');
-      const delIds: string[] = delCached ? JSON.parse(delCached) : [];
-      if (cached) {
-        try {
-          const list: AIDetection[] = JSON.parse(cached);
-          return list.filter((item) => !delIds.includes(item.id));
-        } catch {}
-      }
-    }
-    return [];
-  });
-
+  const [detections, setDetections] = useState<AIDetection[]>([]);
   const [plots, setPlots] = useState<FarmPlot[]>(mockPlots);
   const [selectedPlot, setSelectedPlot] = useState<string>('plot_dabok_01');
   const [forecast] = useState<WeatherDayForecast[]>(mockForecast);
@@ -343,23 +303,43 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
   const [dismissedAlerts, setDismissedAlerts] = useState<Record<string, boolean>>({});
   const previousLatestKeyRef = useRef<string>('');
 
-  const [firebaseConfig, setFirebaseConfig] = useState<FirebaseConfig>(() => {
+  const [firebaseConfig, setFirebaseConfig] = useState<FirebaseConfig>({
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || DEFAULT_FIREBASE_URL,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'sample-629de',
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  });
+
+  // Client-side offline cache hydration strictly after mount
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('agroeye_firebase_config');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try {
+        const cachedSensors = localStorage.getItem('agroeye_offline_sensors');
+        if (cachedSensors) setSensors(JSON.parse(cachedSensors));
+
+        const cachedHistory = localStorage.getItem('agroeye_offline_sensor_history');
+        if (cachedHistory) setSensorHistory(JSON.parse(cachedHistory));
+
+        const cachedDel = localStorage.getItem('agroeye_deleted_detection_ids');
+        const delIds: string[] = cachedDel ? JSON.parse(cachedDel) : [];
+        if (cachedDel) setDeletedDetectionIds(delIds);
+
+        const cachedDetections = localStorage.getItem('agroeye_offline_detections');
+        if (cachedDetections) {
+          const list: AIDetection[] = JSON.parse(cachedDetections);
+          setDetections(list.filter((item) => !delIds.includes(item.id)));
+        }
+
+        const savedConfig = localStorage.getItem('agroeye_firebase_config');
+        if (savedConfig) setFirebaseConfig(JSON.parse(savedConfig));
+      } catch (e) {
+        console.warn('Offline cache restoration notice:', e);
       }
     }
-    return {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || DEFAULT_FIREBASE_URL,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'sample-629de',
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
-    };
-  });
+  }, []);
 
   const saveFirebaseConfig = (config: FirebaseConfig) => {
     setFirebaseConfig(config);

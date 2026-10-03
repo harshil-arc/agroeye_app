@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useFarmData } from '@/context/FarmDataContext';
@@ -23,6 +23,12 @@ import {
 
 export default function Header() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const {
     isOfflineMode,
     firebaseConnected,
@@ -128,7 +134,7 @@ export default function Header() {
               title="Toggle Language / भाषा बदलें"
             >
               <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{lang === 'en' ? 'HI (हिंदी)' : 'EN (English)'}</span>
+              <span>{mounted && lang === 'hi' ? 'EN (English)' : 'HI (हिंदी)'}</span>
             </button>
 
             {/* Threshold Alert Notification Bell */}
@@ -139,10 +145,10 @@ export default function Header() {
               title="Active Threshold Alerts"
             >
               <Bell className="w-4 h-4" />
-              {thresholdAlerts.length > 0 && (
+              {mounted && thresholdAlerts.length > 0 && (
                 <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
               )}
-              {thresholdAlerts.length > 0 && (
+              {mounted && thresholdAlerts.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-bold flex items-center justify-center">
                   {thresholdAlerts.length}
                 </span>
@@ -150,7 +156,7 @@ export default function Header() {
             </button>
 
             {/* Auth Status & Profile */}
-            {isAuthenticated ? (
+            {mounted && isAuthenticated ? (
               <Link
                 href="/profile"
                 className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-headline font-bold transition-all"
@@ -170,7 +176,7 @@ export default function Header() {
                 title="Login or Register Account"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>{lang === 'hi' ? 'लॉगिन / रजिस्टर' : 'Login / Register'}</span>
+                <span>{mounted && lang === 'hi' ? 'लॉगिन / रजिस्टर' : 'Login / Register'}</span>
               </Link>
             )}
           </div>

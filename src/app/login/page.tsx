@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -34,6 +34,13 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
 
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/profile');
+    }
+  }, [isAuthenticated, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -46,10 +53,10 @@ export default function LoginPage() {
           throw new Error('Please enter both your email address and password.');
         }
         await loginWithEmail(email, password);
-        setSuccessMsg(lang === 'hi' ? 'सफलतापूर्वक लॉगिन हो गया!' : 'Successfully signed in!');
+        setSuccessMsg(lang === 'hi' ? 'सफलतापूर्वक लॉगिन हो गया! प्रोफ़ाइल पर भेजा जा रहा है...' : 'Successfully signed in! Redirecting...');
         setTimeout(() => {
-          router.push('/profile');
-        }, 800);
+          window.location.href = '/profile';
+        }, 600);
       } else {
         if (!email || !password || !displayName) {
           throw new Error('Please enter your name, email address, and password.');
@@ -75,15 +82,15 @@ export default function LoginPage() {
             : 'Account created successfully! Redirecting to Profile...'
         );
         setTimeout(() => {
-          router.push('/profile');
-        }, 1000);
+          window.location.href = '/profile';
+        }, 800);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
       const code = err.code || err.message;
-      if (code?.includes('user-not-found') || code?.includes('wrong-password') || code?.includes('invalid-credential')) {
-        setErrorMsg('Invalid email or password credentials. Please try again.');
-      } else if (code?.includes('email-already-in-use')) {
+      if (code?.includes('user-not-found') || code?.includes('wrong-password') || code?.includes('invalid-credential') || code?.includes('Incorrect password')) {
+        setErrorMsg('Incorrect email or password credentials. Please verify your details.');
+      } else if (code?.includes('email-already-in-use') || code?.includes('already registered')) {
         setErrorMsg('An account with this email already exists. Please switch to Sign In.');
       } else if (code?.includes('weak-password')) {
         setErrorMsg('Password should be at least 6 characters.');
@@ -266,7 +273,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-12 mt-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 disabled:opacity-50"
+            className="w-full h-12 mt-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-headline text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">

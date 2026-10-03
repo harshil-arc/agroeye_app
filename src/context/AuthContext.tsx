@@ -66,18 +66,8 @@ function sanitizeEmailKey(email: string): string {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('agroeye_user_profile');
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch {}
-      }
-    }
-    return null;
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Sync profile to Firebase RTDB
   const syncProfileToFirebase = useCallback(async (profile: UserProfile, password?: string) => {
@@ -147,14 +137,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const { auth } = getFirebaseInstance();
 
-    if (!auth) {
-      const localProfile = localStorage.getItem('agroeye_user_profile');
-      if (localProfile) {
+    // Check cached localStorage profile immediately
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('agroeye_user_profile');
+      if (cached) {
         try {
-          setUserProfile(JSON.parse(localProfile));
+          const parsed = JSON.parse(cached);
+          setUserProfile(parsed);
         } catch {}
       }
-      setIsLoading(false);
+    }
+
+    if (!auth) {
       return;
     }
 
@@ -187,8 +181,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           syncProfileToFirebase(newProfile);
         }
+      } else {
+        // When Firebase web auth has no session, check and preserve local cached profile
+        if (typeof window !== 'undefined') {
+          const localProfile = localStorage.getItem('agroeye_user_profile');
+          if (localProfile) {
+            try {
+              const parsed = JSON.parse(localProfile);
+              setUserProfile(parsed);
+              if (parsed.uid) {
+                fetchProfileFromFirebase(parsed.uid).then((cloud) => {
+                  if (cloud) {
+                    setUserProfile(cloud);
+                    localStorage.setItem('agroeye_user_profile', JSON.stringify(cloud));
+                  }
+                }).catch(() => {});
+              }
+            } catch {}
+          }
+        }
       }
-      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -276,44 +288,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { auth } = getFirebaseInstance();
       let authenticatedUid: string | null = null;
-      let authError: any = null;
+      let accountData: any = null;
 
-      // 1. Try Firebase Auth first if initialized
-      if (auth) {
+      // 1. Check Firebase RTDB registered_accounts index first
+      try {
+        const res = await fetch(`${dbUrl}/registered_accounts/${emailKey}.json`, { cache: 'no-store' });
+        if (res.ok) {
+          accountData = await res.json();
+        }
+      } catch (e) {
+        console.warn('Account index lookup notice:', e);
+      }
+
+      if (accountData && accountData.email) {
+        if (accountData.password && accountData.password !== pass) {
+          throw new Error('Incorrect password. Please verify your credentials.');
+        }
+        authenticatedUid = accountData.uid;
+      }
+
+      // 2. Try Firebase Auth if not authenticated via RTDB
+      if (!authenticatedUid && auth) {
         try {
           const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
           authenticatedUid = userCredential.user.uid;
         } catch (err: any) {
-          authError = err;
-        }
-      }
-
-      // 2. Check Firebase RTDB registered_accounts index
-      if (!authenticatedUid) {
-        let accountData: any = null;
-        try {
-          const res = await fetch(`${dbUrl}/registered_accounts/${emailKey}.json`, { cache: 'no-store' });
-          if (res.ok) {
-            accountData = await res.json();
-          }
-        } catch (e) {
-          console.warn('Account index lookup notice:', e);
-        }
-
-        if (!accountData) {
-          // If neither Firebase Auth succeeded nor account exists in RTDB
-          if (authError?.code === 'auth/wrong-password' || authError?.code === 'auth/invalid-credential') {
+          if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
             throw new Error('Incorrect password. Please verify your credentials.');
+          } else if (err.code === 'auth/user-not-found') {
+            throw new Error('No registered account found with this email. Please create an account first.');
           }
-          throw new Error('No registered account found with this email. Please create an account first.');
         }
-
-        // Account exists in RTDB: Verify password
-        if (accountData.password && accountData.password !== pass) {
-          throw new Error('Incorrect password. Please verify your credentials.');
-        }
-
-        authenticatedUid = accountData.uid;
       }
 
       if (!authenticatedUid) {
@@ -325,12 +330,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile: UserProfile = cloudProfile || {
         uid: authenticatedUid,
         email: cleanEmail,
-        displayName: cleanEmail.split('@')[0],
-        farmName: 'my Farm Dabok',
-        location: 'Dabok, Udaipur',
-        crop: 'Rice / Paddy',
-        farmSize: '5 Acres',
+        displayName: accountData?.displayName || cleanEmail.split('@')[0],
+        phoneNumber: accountData?.phoneNumber || '',
+        farmName: accountData?.farmName || 'Primary Farm Sector',
+        location: accountData?.location || 'Dabok, Udaipur',
+        crop: accountData?.crop || 'Rice / Paddy',
+        farmSize: accountData?.farmSize || '5 Acres',
         role: 'farmer',
+        createdAt: accountData?.createdAt || new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
       };
 
@@ -339,7 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('agroeye_user_profile', JSON.stringify(profile));
       }
-      syncProfileToFirebase(profile);
+      await syncProfileToFirebase(profile, pass);
     } catch (err: any) {
       console.error('Login validation error:', err);
       throw err;
@@ -379,7 +386,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAsOperator = async () => {
-    // No-op or redirects
+    // No-op
   };
 
   return (
