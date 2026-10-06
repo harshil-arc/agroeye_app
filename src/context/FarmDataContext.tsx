@@ -434,27 +434,30 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     });
   }, [sendCameraControlToFirebase]);
 
-  // Direct REST fetcher syncing all real data directly from Firebase
+  // Direct REST fetcher syncing all real data directly from Firebase with parallel targeted requests
   const refreshFirebaseData = useCallback(async () => {
     const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
     try {
       setIsLoadingDetections(true);
-      const res = await fetch(`${dbUrl}/.json`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data) return;
+
+      const [alertsRes, snapshotsRes, sensorsRes, liveRes, camRes, fieldsRes] = await Promise.allSettled([
+        fetch(`${dbUrl}/disease_alerts.json`, { cache: 'no-store' }),
+        fetch(`${dbUrl}/snapshots.json`, { cache: 'no-store' }),
+        fetch(`${dbUrl}/sensor_readings.json`, { cache: 'no-store' }),
+        fetch(`${dbUrl}/live_status.json`, { cache: 'no-store' }),
+        fetch(`${dbUrl}/camera_control.json`, { cache: 'no-store' }),
+        fetch(`${dbUrl}/fields.json`, { cache: 'no-store' }),
+      ]);
 
       setFirebaseConnected(true);
 
-      // 1. Process real alerts/detections/snapshots from Firebase
+      // 1. Process real alerts & snapshots from Firebase
+      const diseaseAlertsData = alertsRes.status === 'fulfilled' && alertsRes.value.ok ? await alertsRes.value.json() : null;
+      const snapshotsData = snapshotsRes.status === 'fulfilled' && snapshotsRes.value.ok ? await snapshotsRes.value.json() : null;
+
       const rawAlerts = {
-        ...(typeof data.disease_alerts === 'object' ? data.disease_alerts : {}),
-        ...(typeof data.snapshots === 'object' ? data.snapshots : {}),
-        ...(typeof data.detections === 'object' ? data.detections : {}),
-        ...(typeof data.alerts === 'object' ? data.alerts : {}),
-        ...(typeof data.crop_alerts === 'object' ? data.crop_alerts : {}),
-        ...(typeof data.yolo_detections === 'object' ? data.yolo_detections : {}),
-        ...(typeof data.ai_detections === 'object' ? data.ai_detections : {}),
+        ...(typeof diseaseAlertsData === 'object' && diseaseAlertsData !== null ? diseaseAlertsData : {}),
+        ...(typeof snapshotsData === 'object' && snapshotsData !== null ? snapshotsData : {}),
       };
 
       if (rawAlerts && Object.keys(rawAlerts).length > 0) {
@@ -475,24 +478,26 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Check for direct live camera image snapshot in root or live_status or snapshots node
-      const liveImgCandidate = data.live_status?.latest_photo_url ||
-        data.live_status?.image ||
-        data.live_status?.photo_url ||
-        data.latest_photo_url ||
-        data.latest_image ||
-        data.camera_feed?.image ||
-        data.camera_snapshot;
-      if (liveImgCandidate) {
-        const normalizedLive = normalizeImageSource(liveImgCandidate);
-        if (normalizedLive && normalizedLive !== DEFAULT_FALLBACK_IMAGE) {
-          setLatestImageUrl(normalizedLive);
+      // Check for direct live camera image snapshot in live_status
+      const liveData = liveRes.status === 'fulfilled' && liveRes.value.ok ? await liveRes.value.json() : null;
+      if (liveData) {
+        const liveImgCandidate =
+          liveData.latest_photo_url ||
+          liveData.image ||
+          liveData.photo_url ||
+          liveData.camera_snapshot;
+        if (liveImgCandidate) {
+          const normalizedLive = normalizeImageSource(liveImgCandidate);
+          if (normalizedLive && normalizedLive !== DEFAULT_FALLBACK_IMAGE) {
+            setLatestImageUrl(normalizedLive);
+          }
         }
       }
 
       // 2. Process real sensor_readings from Firebase
-      if (data.sensor_readings && typeof data.sensor_readings === 'object') {
-        const sensorEntries: any[] = Object.values(data.sensor_readings);
+      const sensorsData = sensorsRes.status === 'fulfilled' && sensorsRes.value.ok ? await sensorsRes.value.json() : null;
+      if (sensorsData && typeof sensorsData === 'object') {
+        const sensorEntries: any[] = Object.values(sensorsData);
         if (sensorEntries.length > 0) {
           const latestReading = sensorEntries[sensorEntries.length - 1];
 
@@ -529,7 +534,9 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
             });
 
           setSensorHistory(historyPoints);
-          localStorage.setItem('agroeye_offline_sensor_history', JSON.stringify(historyPoints));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('agroeye_offline_sensor_history', JSON.stringify(historyPoints));
+          }
 
           const validTemps = sensorEntries
             .map((r: any) => typeof r.temperature === 'number' ? r.temperature : parseFloat(r.temperature))
@@ -575,7 +582,9 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
           };
 
           setSensors(updatedSensors);
-          localStorage.setItem('agroeye_offline_sensors', JSON.stringify(updatedSensors));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('agroeye_offline_sensors', JSON.stringify(updatedSensors));
+          }
 
           const syncTime = latestReading.datetime ? latestReading.datetime.split(' ')[1] || 'Just now' : 'Just now';
           setLastUpdated(`Live Synced • ${syncTime}`);
@@ -584,8 +593,9 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 3. Process fields from Firebase
-      if (data.fields && typeof data.fields === 'object') {
-        const fieldList: FarmPlot[] = Object.entries(data.fields).map(([k, f]: [string, any]) => ({
+      const fieldsData = fieldsRes.status === 'fulfilled' && fieldsRes.value.ok ? await fieldsRes.value.json() : null;
+      if (fieldsData && typeof fieldsData === 'object') {
+        const fieldList: FarmPlot[] = Object.entries(fieldsData).map(([k, f]: [string, any]) => ({
           id: f.id || k,
           name: `${f.name || 'my Farm'} • ${f.location ? f.location.toUpperCase() : 'DABOK'}`,
           crop: f.crop || 'Rice',
@@ -602,15 +612,16 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 4. Process camera_control if present (sync hardware angles without overriding user's active mode)
-      if (data.camera_control && typeof data.camera_control === 'object') {
+      // 4. Process camera_control if present
+      const camData = camRes.status === 'fulfilled' && camRes.value.ok ? await camRes.value.json() : null;
+      if (camData && typeof camData === 'object') {
         setCameraControl((prev) => ({
           ...prev,
-          pan_angle: typeof data.camera_control.pan_angle === 'number' ? data.camera_control.pan_angle : prev.pan_angle,
-          tilt_angle: typeof data.camera_control.tilt_angle === 'number' ? data.camera_control.tilt_angle : prev.tilt_angle,
-          x_coord: typeof data.camera_control.x_coord === 'number' ? data.camera_control.x_coord : prev.x_coord,
-          y_coord: typeof data.camera_control.y_coord === 'number' ? data.camera_control.y_coord : prev.y_coord,
-          last_updated: data.camera_control.last_updated || prev.last_updated,
+          pan_angle: typeof camData.pan_angle === 'number' ? camData.pan_angle : prev.pan_angle,
+          tilt_angle: typeof camData.tilt_angle === 'number' ? camData.tilt_angle : prev.tilt_angle,
+          x_coord: typeof camData.x_coord === 'number' ? camData.x_coord : prev.x_coord,
+          y_coord: typeof camData.y_coord === 'number' ? camData.y_coord : prev.y_coord,
+          last_updated: camData.last_updated || prev.last_updated,
         }));
       }
     } catch (err) {

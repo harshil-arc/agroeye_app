@@ -6,11 +6,11 @@ import { FirebaseConfig } from '@/types';
 
 // Default / fallback Firebase config from environment variables
 export const defaultFirebaseConfig: FirebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || '',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSySampleKeyForAgroEyeLocalApp',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'sample-629de.firebaseapp.com',
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || 'https://sample-629de-default-rtdb.firebaseio.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'sample-629de',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'sample-629de.appspot.com',
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
 };
@@ -27,9 +27,7 @@ export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
       ...(customConfig || {}),
     };
 
-    if (!activeConfig.projectId && !activeConfig.databaseURL && !activeConfig.apiKey) {
-      return { app: null, db: null, firestore: null, auth: null, isConfigured: false };
-    }
+    const targetDbUrl = activeConfig.databaseURL || 'https://sample-629de-default-rtdb.firebaseio.com';
 
     if (!getApps().length) {
       app = initializeApp(activeConfig);
@@ -37,22 +35,20 @@ export function getFirebaseInstance(customConfig?: Partial<FirebaseConfig>) {
       app = getApp();
     }
 
-    if (activeConfig.databaseURL || activeConfig.projectId) {
-      try {
-        db = getDatabase(app);
-      } catch (err) {
-        console.warn('Firebase RTDB not initialized:', err);
-      }
-      try {
-        firestore = getFirestore(app);
-      } catch (err) {
-        console.warn('Firebase Firestore not initialized:', err);
-      }
-      try {
-        auth = getAuth(app);
-      } catch (err) {
-        console.warn('Firebase Auth not initialized:', err);
-      }
+    try {
+      db = getDatabase(app, targetDbUrl);
+    } catch (err) {
+      console.warn('Firebase RTDB not initialized:', err);
+    }
+    try {
+      firestore = getFirestore(app);
+    } catch (err) {
+      console.warn('Firebase Firestore not initialized:', err);
+    }
+    try {
+      auth = getAuth(app);
+    } catch (err) {
+      console.warn('Firebase Auth not initialized:', err);
     }
 
     return { app, db, firestore, auth, isConfigured: true };
