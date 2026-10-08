@@ -21,7 +21,11 @@ import {
   Clock,
   BarChart3,
   TrendingUp,
-  RotateCcw
+  RotateCcw,
+  CloudSun,
+  CalendarDays,
+  Sprout,
+  ChevronRight
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -229,57 +233,71 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. Smart Irrigation Recommendation Engine Banner */}
+      {/* 3. Section Buttons: IMD Forecast | Historical Monsoon Onset | Know Your Soil */}
       <section className="px-4 pb-3">
-        <div className="w-full rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-4 shadow-md border border-emerald-800/40 relative overflow-hidden">
-          <div className="absolute -right-10 -bottom-10 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
-
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Droplets className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="font-headline text-[10px] uppercase font-bold tracking-widest text-emerald-300 block">
-                  Agronomic Intelligence
-                </span>
-                <h3 className="font-headline text-sm font-bold text-white">
-                  {irrigationRecommendation.title}
-                </h3>
-              </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* 1. IMD forecast */}
+          <Link
+            href="/imd-forecast"
+            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-sky-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-sky-100 transition-all">
+              <CloudSun className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 font-headline text-[11px] font-bold text-emerald-300 uppercase">
-              {irrigationRecommendation.badge}
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-200 leading-relaxed mt-2">
-            {irrigationRecommendation.reason}
-          </p>
-
-          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10 text-center">
-            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] text-slate-300 block font-medium uppercase">Water Deficit</span>
-              <span className="font-headline text-sm font-bold text-emerald-300 mt-0.5 block">
-                {irrigationRecommendation.recommendedVolumeLitersPerAcre.toLocaleString()} L/acre
+            <div className="my-2 min-w-0 w-full">
+              <span className="font-headline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-sky-700 block truncate">
+                Weather Advisory
               </span>
+              <h3 className="font-headline text-xs sm:text-sm font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-tight mt-0.5">
+                IMD forecast
+              </h3>
             </div>
+            <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-sky-50 text-slate-400 group-hover:text-sky-600 flex items-center justify-center transition-all">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </Link>
 
-            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] text-slate-300 block font-medium uppercase">VPD Stress</span>
-              <span className="font-headline text-sm font-bold text-sky-300 mt-0.5 block">
-                {irrigationRecommendation.currentMetrics.vpdKpa} kPa
-              </span>
+          {/* 2. historical monsoon onset */}
+          <button
+            type="button"
+            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer text-slate-900"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-emerald-100 transition-all">
+              <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
+            <div className="my-2 min-w-0 w-full">
+              <span className="font-headline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-emerald-700 block truncate">
+                Monsoon Analysis
+              </span>
+              <h3 className="font-headline text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors leading-tight mt-0.5">
+                historical monsoon onset
+              </h3>
+            </div>
+            <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-emerald-50 text-slate-400 group-hover:text-emerald-600 flex items-center justify-center transition-all">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </button>
 
-            <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-              <span className="text-[10px] text-slate-300 block font-medium uppercase">Best Window</span>
-              <span className="font-headline text-[11px] font-bold text-amber-300 mt-0.5 block truncate">
-                {irrigationRecommendation.bestWindow}
-              </span>
+          {/* 3. know your soil */}
+          <button
+            type="button"
+            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer text-slate-900"
+          >
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-amber-100 transition-all">
+              <Sprout className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-          </div>
+            <div className="my-2 min-w-0 w-full">
+              <span className="font-headline text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-amber-700 block truncate">
+                Soil Intelligence
+              </span>
+              <h3 className="font-headline text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-tight mt-0.5">
+                know your soil
+              </h3>
+            </div>
+            <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-amber-50 text-slate-400 group-hover:text-amber-600 flex items-center justify-center transition-all">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </button>
         </div>
       </section>
 

@@ -309,19 +309,26 @@ export default function LiveCameraPage() {
             : new MediaStream([event.track]);
 
         if (videoRef.current) {
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
           videoRef.current.srcObject = stream;
-          videoRef.current
-            .play()
-            .then(() => {
+          const p = videoRef.current.play();
+          if (p !== undefined) {
+            p.then(() => {
               setIsVideoPlaying(true);
               addLog('success', '✅ Live video playback active on display viewport!');
-            })
-            .catch((err) => {
+            }).catch((err) => {
               addLog('warning', `Video auto-play notice: ${err.message}`);
+              setIsVideoPlaying(true);
             });
+          } else {
+            setIsVideoPlaying(true);
+          }
         }
 
         if (fullscreenVideoRef.current) {
+          fullscreenVideoRef.current.muted = true;
+          fullscreenVideoRef.current.playsInline = true;
           fullscreenVideoRef.current.srcObject = stream;
           fullscreenVideoRef.current.play().catch(() => {});
         }
@@ -333,6 +340,10 @@ export default function LiveCameraPage() {
         if (state === 'connected') {
           addLog('success', `🌐 Connection State -> CONNECTED! WebRTC stream is live.`);
           setIsConnecting(false);
+          setIsVideoPlaying(true);
+          if (videoRef.current) {
+            videoRef.current.play().catch(() => {});
+          }
         } else if (state === 'connecting') {
           addLog('info', `🌐 Connection State -> CONNECTING...`);
         } else if (state === 'failed') {
@@ -380,9 +391,26 @@ export default function LiveCameraPage() {
         }
       };
 
-      // Step 3: Add video transceiver
-      pc.addTransceiver('video', { direction: 'recvonly' });
-      addLog('info', 'Step 3/7: Added video transceiver (recvonly).');
+      // Step 3: Add video transceiver with VP8 priority
+      const transceiver = pc.addTransceiver('video', { direction: 'recvonly' });
+      if (typeof RTCRtpReceiver !== 'undefined' && 'getCapabilities' in RTCRtpReceiver) {
+        const caps = RTCRtpReceiver.getCapabilities('video');
+        if (caps && caps.codecs) {
+          const vp8 = caps.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/vp8');
+          const h264 = caps.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264');
+          const others = caps.codecs.filter(
+            (c) =>
+              c.mimeType.toLowerCase() !== 'video/vp8' &&
+              c.mimeType.toLowerCase() !== 'video/h264'
+          );
+          if (vp8.length > 0) {
+            try {
+              transceiver.setCodecPreferences([...vp8, ...h264, ...others]);
+            } catch (e) {}
+          }
+        }
+      }
+      addLog('info', 'Step 3/7: Added video transceiver (recvonly, VP8 preferred).');
 
       // Step 4: Attach Firebase Answer listener
       addLog('info', 'Step 4/7: Attaching Firebase Answer & Pi ICE candidate listeners...');
@@ -913,22 +941,26 @@ export default function LiveCameraPage() {
             muted
             onPlaying={() => setIsVideoPlaying(true)}
             onLoadedData={() => setIsVideoPlaying(true)}
+            onLoadedMetadata={() => {
+              setIsVideoPlaying(true);
+              videoRef.current?.play().catch(() => {});
+            }}
+            onCanPlay={() => {
+              setIsVideoPlaying(true);
+              videoRef.current?.play().catch(() => {});
+            }}
             onTimeUpdate={() => {
               if (videoRef.current && videoRef.current.videoWidth > 0) {
                 setIsVideoPlaying(true);
               }
             }}
-            onPause={() => {
-              if (!isLive) setIsVideoPlaying(false);
-            }}
-            onError={() => setIsVideoPlaying(false)}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-              isVideoPlaying && isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+              isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
             }`}
           />
 
           {/* Standby / Connecting Modal Card when stream is not active */}
-          {(!isVideoPlaying || !isLive) && (
+          {!isLive && (
             <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center text-white z-10 animate-in fade-in duration-200">
               <div
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-xl ${
@@ -976,8 +1008,8 @@ export default function LiveCameraPage() {
             </div>
           )}
 
-          {/* Reticle HUD & Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/60 pointer-events-none z-20" />
+          {/* Reticle HUD & Light Subtle Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/30 pointer-events-none z-20" />
           <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-emerald-400 pointer-events-none z-20" />
           <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-emerald-400 pointer-events-none z-20" />
           <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400 pointer-events-none z-20" />
@@ -1300,7 +1332,7 @@ export default function LiveCameraPage() {
               muted
               onPlaying={() => setIsVideoPlaying(true)}
               className={`w-full h-full object-contain transition-opacity duration-300 ${
-                isVideoPlaying && isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+                isLive ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
               }`}
             />
 

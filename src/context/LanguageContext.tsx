@@ -25,10 +25,12 @@ export const translations: Translations = {
   staleData: { en: 'Stale Telemetry (>15m)', hi: 'पुराना डेटा (>15 मि)' },
   
   // Sensor Telemetry
+  realTelemetry: { en: 'Real-Time Telemetry', hi: 'लाइव टेलीमेट्री' },
+  canopyTemp: { en: 'Canopy Temp', hi: 'फसल तापमान' },
   temperature: { en: 'Temperature', hi: 'तापमान' },
   soilMoisture: { en: 'Soil Moisture', hi: 'मिट्टी की नमी' },
   humidity: { en: 'Air Humidity', hi: 'हवा की आर्द्रता' },
-  airQuality: { en: 'Air Quality (MQ-135)', hi: 'वायु गुणवत्ता' },
+  airQuality: { en: 'Air Quality', hi: 'वायु गुणवत्ता' },
   solarRadiation: { en: 'Solar Radiation', hi: 'सौर विकिरण' },
   windVelocity: { en: 'Wind Velocity', hi: 'हवा की गति' },
   atmPressure: { en: 'Atm Pressure', hi: 'वायुमंडलीय दबाव' },
