@@ -682,10 +682,10 @@ export default function IMDForecastPage() {
                   <button
                     type="button"
                     onClick={() => setActiveChartTab('rainfall')}
-                    className={`px-3 py-1 rounded-lg font-headline text-xs font-bold transition-colors ${
+                    className={`px-3.5 py-1.5 rounded-lg font-headline text-xs font-bold transition-all duration-200 cursor-pointer ${
                       activeChartTab === 'rainfall'
-                        ? 'bg-white text-emerald-800 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white text-emerald-800 shadow-sm scale-100 font-bold ring-1 ring-black/5'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     🌧 Rainfall Trend
@@ -693,10 +693,10 @@ export default function IMDForecastPage() {
                   <button
                     type="button"
                     onClick={() => setActiveChartTab('temperature')}
-                    className={`px-3 py-1 rounded-lg font-headline text-xs font-bold transition-colors ${
+                    className={`px-3.5 py-1.5 rounded-lg font-headline text-xs font-bold transition-all duration-200 cursor-pointer ${
                       activeChartTab === 'temperature'
-                        ? 'bg-white text-emerald-800 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white text-emerald-800 shadow-sm scale-100 font-bold ring-1 ring-black/5'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
                     🌡 Temperature Trend
@@ -705,7 +705,7 @@ export default function IMDForecastPage() {
               </div>
 
               {/* Chart Body */}
-              <div className="pt-4">
+              <div key={activeChartTab} className="pt-4 animate-tab-fade">
                 {activeChartTab === 'rainfall' ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-4 gap-2 text-center">

@@ -746,10 +746,10 @@ export default function WeatherPage() {
                 <button
                   type="button"
                   onClick={() => setActiveHistoryGraph('temperature')}
-                  className={`px-3 py-1 rounded-lg font-headline text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg font-headline text-xs font-bold transition-all duration-200 cursor-pointer ${
                     activeHistoryGraph === 'temperature'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-sm scale-100 ring-1 ring-black/5'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   🌡️ Temperature
@@ -757,10 +757,10 @@ export default function WeatherPage() {
                 <button
                   type="button"
                   onClick={() => setActiveHistoryGraph('rainfall')}
-                  className={`px-3 py-1 rounded-lg font-headline text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg font-headline text-xs font-bold transition-all duration-200 cursor-pointer ${
                     activeHistoryGraph === 'rainfall'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-sm scale-100 ring-1 ring-black/5'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   🌧️ Rainfall
@@ -768,10 +768,10 @@ export default function WeatherPage() {
                 <button
                   type="button"
                   onClick={() => setActiveHistoryGraph('humidity')}
-                  className={`px-3 py-1 rounded-lg font-headline text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg font-headline text-xs font-bold transition-all duration-200 cursor-pointer ${
                     activeHistoryGraph === 'humidity'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-white text-slate-900 shadow-sm scale-100 ring-1 ring-black/5'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   💧 Humidity
@@ -780,7 +780,7 @@ export default function WeatherPage() {
             </div>
 
             {/* Active Rendered Visual Graph */}
-            <div className="pt-2">
+            <div key={activeHistoryGraph} className="pt-2 animate-tab-fade">
               {activeHistoryGraph === 'temperature' && renderTemperatureChart(weatherData.history)}
               {activeHistoryGraph === 'rainfall' && renderRainfallChart(weatherData.history)}
               {activeHistoryGraph === 'humidity' && renderHumidityChart(weatherData.history)}

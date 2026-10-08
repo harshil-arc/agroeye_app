@@ -18,6 +18,10 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  button, a {
+    touch-action: manipulation;
+  }
+
   .pb-safe {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
   }
@@ -42,4 +46,57 @@
 
 .font-tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Smooth Tab & View Transition Animations */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tabSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tabSlideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-tab-fade {
+  animation: tabFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-tab-slide-r {
+  animation: tabSlideRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-tab-slide-l {
+  animation: tabSlideLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.tab-pill-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }

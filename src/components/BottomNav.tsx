@@ -72,18 +72,18 @@ export default function BottomNav() {
               href={item.href}
               prefetch={true}
               onClick={() => handleNavClick(item.href)}
-              className={`group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-all ${
+              className={`group flex flex-col items-center justify-center min-w-[56px] min-h-[48px] py-1 transition-transform duration-150 active:scale-90 ${
                 item.isActive
                   ? 'text-emerald-700 font-bold'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <div
-                className={`relative flex items-center justify-center px-3.5 py-1 rounded-full transition-all ${
-                  item.isActive ? 'bg-emerald-50 text-emerald-700 shadow-xs' : 'group-hover:bg-slate-100'
+                className={`relative flex items-center justify-center px-4 py-1.5 rounded-full transition-all duration-200 ease-out ${
+                  item.isActive ? 'bg-emerald-100/70 text-emerald-800 scale-105 shadow-sm' : 'group-hover:bg-slate-100'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${item.isActive ? 'text-emerald-700' : 'text-slate-600'}`} />
+                <Icon className={`w-5 h-5 transition-transform duration-200 ${item.isActive ? 'text-emerald-700 scale-110' : 'text-slate-600'}`} />
 
                 {item.badge === 'live' && (
                   <>
@@ -93,12 +93,12 @@ export default function BottomNav() {
                 )}
 
                 {mounted && typeof item.count === 'number' && item.count > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white font-headline text-[10px] flex items-center justify-center font-bold shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white font-headline text-[10px] flex items-center justify-center font-bold shadow-sm animate-pulse">
                     {item.count}
                   </span>
                 )}
               </div>
-              <span className="font-headline text-[11px] uppercase tracking-wider mt-0.5 font-semibold">
+              <span className={`font-headline text-[10px] uppercase tracking-wider mt-0.5 transition-all duration-200 ${item.isActive ? 'font-bold text-emerald-800' : 'font-medium text-slate-500'}`}>
                 {item.label}
               </span>
             </Link>

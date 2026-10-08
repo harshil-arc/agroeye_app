@@ -469,14 +469,14 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 type="button"
                 onClick={() => setHistoryRange('24h')}
-                className={`px-3 py-1 rounded-md text-xs font-headline font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold transition-all duration-200 cursor-pointer ${
                   historyRange === '24h'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-sm scale-100 ring-1 ring-black/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
                 24H
@@ -484,10 +484,10 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setHistoryRange('7d')}
-                className={`px-3 py-1 rounded-md text-xs font-headline font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-headline font-bold transition-all duration-200 cursor-pointer ${
                   historyRange === '7d'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-sm scale-100 ring-1 ring-black/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
                 7D
@@ -500,10 +500,10 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setActiveHistoryMetric('soil')}
-              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-headline text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 activeHistoryMetric === 'soil'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ? 'bg-emerald-100/80 text-emerald-900 border border-emerald-300 shadow-xs scale-102'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-transparent'
               }`}
             >
               Soil Moisture ({sensors.soilMoisture}%)
@@ -512,10 +512,10 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setActiveHistoryMetric('temp')}
-              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-headline text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 activeHistoryMetric === 'temp'
-                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ? 'bg-amber-100/80 text-amber-900 border border-amber-300 shadow-xs scale-102'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-transparent'
               }`}
             >
               Canopy Temp ({sensors.temperature}°C)
@@ -524,18 +524,19 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setActiveHistoryMetric('humidity')}
-              className={`px-3 py-1.5 rounded-lg font-headline text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-headline text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 activeHistoryMetric === 'humidity'
-                  ? 'bg-sky-50 text-sky-800 border border-sky-200'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ? 'bg-sky-100/80 text-sky-900 border border-sky-300 shadow-xs scale-102'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-transparent'
               }`}
             >
               Air Humidity ({sensors.humidity}%)
             </button>
           </div>
 
-          {/* Statistics summary bar */}
-          <div className="grid grid-cols-4 gap-2 mb-3 text-center">
+          {/* Statistics summary bar & Graph Canvas Container */}
+          <div key={`${historyRange}-${activeHistoryMetric}`} className="animate-tab-fade">
+            <div className="grid grid-cols-4 gap-2 mb-3 text-center">
             <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Current</span>
               <span className="font-headline text-xs font-bold text-slate-900 mt-0.5 block">
@@ -599,6 +600,7 @@ export default function HomePage() {
             {activePoints.filter((_, idx) => idx % Math.ceil(activePoints.length / 5) === 0 || idx === activePoints.length - 1).map((pt, idx) => (
               <span key={idx}>{pt.label}</span>
             ))}
+          </div>
           </div>
         </div>
       </section>
