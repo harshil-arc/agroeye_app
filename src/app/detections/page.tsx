@@ -31,7 +31,8 @@ export default function DetectionsPage() {
     refreshFirebaseData,
     isLoadingDetections,
     setAutoOpenedDetection,
-    deleteDetection
+    deleteDetection,
+    clearAllDetections
   } = useFarmData();
   const { t, lang } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -40,12 +41,23 @@ export default function DetectionsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'unhandled' | 'treated'>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showClearAllModal, setShowClearAllModal] = useState<boolean>(false);
+  const [isClearingAll, setIsClearingAll] = useState<boolean>(false);
   const [deleteSuccessToast, setDeleteSuccessToast] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refreshFirebaseData();
     setTimeout(() => setIsRefreshing(false), 600);
+  };
+
+  const handleClearAll = async () => {
+    setIsClearingAll(true);
+    await clearAllDetections();
+    setIsClearingAll(false);
+    setShowClearAllModal(false);
+    setDeleteSuccessToast(lang === 'hi' ? 'सभी घटनाएं और तस्वीरें सफलतापूर्वक हटा दी गईं।' : 'All detection images and records removed from Firebase and app.');
+    setTimeout(() => setDeleteSuccessToast(null), 3500);
   };
 
   const diseaseCount = detections.filter((d) => d.category === 'disease').length;
@@ -151,6 +163,18 @@ export default function DetectionsPage() {
             <RefreshCw className={`w-4 h-4 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Sync</span>
           </button>
+
+          {detections.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowClearAllModal(true)}
+              className="h-10 px-3 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-headline text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all shadow-xs flex-shrink-0"
+              title="Clear all detection records and images from cloud and app"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span className="hidden sm:inline">Clear All</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -370,6 +394,50 @@ export default function DetectionsPage() {
         <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 p-3 bg-slate-900 text-white rounded-xl shadow-xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
           <Trash2 className="w-4 h-4 text-rose-400 flex-shrink-0" />
           <span className="text-xs font-medium flex-1">{deleteSuccessToast}</span>
+        </div>
+      )}
+
+      {/* Clear All Confirmation Modal */}
+      {showClearAllModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-headline text-lg font-bold text-slate-900">
+                {lang === 'hi' ? 'सभी घटनाएं हटाएं?' : 'Clear All Detection Records?'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {lang === 'hi'
+                  ? 'यह सभी रोग और कीट पहचान रिकॉर्ड और उनकी छवियों को Firebase क्लाउड और इस ऐप से हमेशा के लिए हटा देगा।'
+                  : 'This will permanently delete all detection events and snapshot images from Firebase and local storage.'}
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowClearAllModal(false)}
+                disabled={isClearingAll}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-headline text-xs font-bold transition-all"
+              >
+                {lang === 'hi' ? 'रद्द करें' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={isClearingAll}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-headline text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                {isClearingAll ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{isClearingAll ? (lang === 'hi' ? 'हटाया जा रहा है...' : 'Clearing...') : (lang === 'hi' ? 'हां, सब हटाएं' : 'Yes, Delete All')}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

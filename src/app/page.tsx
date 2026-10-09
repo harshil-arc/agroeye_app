@@ -258,9 +258,9 @@ export default function HomePage() {
           </Link>
 
           {/* 2. historical monsoon onset */}
-          <button
-            type="button"
-            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer text-slate-900"
+          <Link
+            href="/historical-monsoon-onset"
+            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-emerald-100 transition-all">
               <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -276,12 +276,12 @@ export default function HomePage() {
             <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-emerald-50 text-slate-400 group-hover:text-emerald-600 flex items-center justify-center transition-all">
               <ChevronRight className="w-3.5 h-3.5" />
             </div>
-          </button>
+          </Link>
 
           {/* 3. know your soil */}
-          <button
-            type="button"
-            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer text-slate-900"
+          <Link
+            href="/know-your-soil"
+            className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-amber-100 transition-all">
               <Sprout className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -297,7 +297,7 @@ export default function HomePage() {
             <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-amber-50 text-slate-400 group-hover:text-amber-600 flex items-center justify-center transition-all">
               <ChevronRight className="w-3.5 h-3.5" />
             </div>
-          </button>
+          </Link>
         </div>
       </section>
 

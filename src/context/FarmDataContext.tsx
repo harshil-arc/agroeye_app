@@ -48,6 +48,7 @@ interface FarmDataContextType {
   triggerManualAlert: (customImageUrl?: string, title?: string) => void;
   markDetectionTreated: (id: string) => void;
   deleteDetection: (id: string) => Promise<void>;
+  clearAllDetections: () => Promise<void>;
   latestImageUrl: string;
   isStreamActive: boolean;
   setIsStreamActive: (active: boolean) => void;
@@ -476,6 +477,11 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         if (parsedList.length > 0) {
           previousLatestKeyRef.current = parsedList[0].id;
         }
+      } else {
+        setDetections([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('agroeye_offline_detections');
+        }
       }
 
       // Check for direct live camera image snapshot in live_status
@@ -653,43 +659,48 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
       const liveStatusRef = ref(db, 'live_status');
       const cameraControlRef = ref(db, 'camera_control');
 
-      const handleIncomingDetectionsOrSnapshots = (data: any) => {
-        if (data && typeof data === 'object') {
-          const currentDeleted = deletedDetectionIdsRef.current;
-          const entries = Object.entries(data);
-          const parsedList: AIDetection[] = entries
-            .filter(([key]) => !currentDeleted.includes(key))
-            .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
-            .reverse();
+      let cachedAlertsData: any = null;
+      let cachedSnapshotsData: any = null;
 
-          setDetections((prev) => {
-            // Merge existing and new detections by ID
-            const map = new Map<string, AIDetection>();
-            parsedList.forEach((d) => map.set(d.id, d));
-            prev.forEach((d) => {
-              if (!map.has(d.id) && !currentDeleted.includes(d.id)) {
-                map.set(d.id, d);
-              }
-            });
-            const merged = Array.from(map.values());
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('agroeye_offline_detections', JSON.stringify(merged));
-            }
-            return merged;
-          });
+      const syncLiveDetectionStream = () => {
+        const rawAlerts = {
+          ...(typeof cachedAlertsData === 'object' && cachedAlertsData !== null ? cachedAlertsData : {}),
+          ...(typeof cachedSnapshotsData === 'object' && cachedSnapshotsData !== null ? cachedSnapshotsData : {}),
+        };
 
-          if (parsedList.length > 0) {
-            previousLatestKeyRef.current = parsedList[0].id;
+        const currentDeleted = deletedDetectionIdsRef.current;
+        const entries = Object.entries(rawAlerts);
+        if (entries.length === 0) {
+          setDetections([]);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('agroeye_offline_detections');
           }
+          return;
+        }
+
+        const parsedList: AIDetection[] = entries
+          .filter(([key]) => !currentDeleted.includes(key))
+          .map(([key, raw]: [string, any], index) => transformFirebaseAlert(key, raw, index))
+          .reverse();
+
+        setDetections(parsedList);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('agroeye_offline_detections', JSON.stringify(parsedList));
+        }
+
+        if (parsedList.length > 0) {
+          previousLatestKeyRef.current = parsedList[0].id;
         }
       };
 
       const unsubAlerts = onValue(alertsRef, (snapshot) => {
-        handleIncomingDetectionsOrSnapshots(snapshot.val());
+        cachedAlertsData = snapshot.val();
+        syncLiveDetectionStream();
       });
 
       const unsubSnapshots = onValue(snapshotsRef, (snapshot) => {
-        handleIncomingDetectionsOrSnapshots(snapshot.val());
+        cachedSnapshotsData = snapshot.val();
+        syncLiveDetectionStream();
       });
 
       const unsubSensors = onValue(sensorRef, (snapshot) => {
@@ -888,6 +899,57 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firebaseConfig]);
 
+  const clearAllDetections = useCallback(async () => {
+    // 1. Clear local state
+    setDetections([]);
+    setAutoOpenedDetection(null);
+    setLatestImageUrl(DEFAULT_FALLBACK_IMAGE);
+    setDeletedDetectionIds([]);
+
+    // 2. Clear localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('agroeye_offline_detections');
+      localStorage.removeItem('agroeye_deleted_detection_ids');
+    }
+
+    // 3. Delete from Firebase RTDB REST endpoints
+    const dbUrl = (firebaseConfig.databaseURL || DEFAULT_FIREBASE_URL).replace(/\/$/, '');
+    try {
+      await Promise.allSettled([
+        fetch(`${dbUrl}/disease_alerts.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/snapshots.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/detections.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/alerts.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/crop_alerts.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/yolo_detections.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/ai_detections.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/live_status/latest_photo_url.json`, { method: 'DELETE' }),
+        fetch(`${dbUrl}/live_status/latest_disease.json`, { method: 'DELETE' }),
+      ]);
+    } catch (e) {
+      console.warn('Firebase clear notice:', e);
+    }
+
+    // 4. Delete via Firebase SDK
+    const { db } = getFirebaseInstance(firebaseConfig);
+    if (db) {
+      try {
+        const { set } = await import('firebase/database');
+        await Promise.allSettled([
+          set(ref(db, 'disease_alerts'), null),
+          set(ref(db, 'snapshots'), null),
+          set(ref(db, 'detections'), null),
+          set(ref(db, 'alerts'), null),
+          set(ref(db, 'crop_alerts'), null),
+          set(ref(db, 'yolo_detections'), null),
+          set(ref(db, 'ai_detections'), null),
+          set(ref(db, 'live_status/latest_photo_url'), null),
+          set(ref(db, 'live_status/latest_disease'), null),
+        ]);
+      } catch {}
+    }
+  }, [firebaseConfig]);
+
   // Compute Active Threshold Alerts
   const thresholdAlerts: ThresholdAlert[] = [];
   if (sensors.soilMoisture < 45 && !dismissedAlerts['soil_dry']) {
@@ -962,6 +1024,7 @@ export function FarmDataProvider({ children }: { children: React.ReactNode }) {
         triggerManualAlert,
         markDetectionTreated,
         deleteDetection,
+        clearAllDetections,
         latestImageUrl,
         isStreamActive,
         setIsStreamActive,
