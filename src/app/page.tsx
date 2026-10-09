@@ -239,6 +239,7 @@ export default function HomePage() {
           {/* 1. IMD forecast */}
           <Link
             href="/imd-forecast"
+            prefetch={true}
             className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-sky-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-sky-100 transition-all">
@@ -260,6 +261,7 @@ export default function HomePage() {
           {/* 2. historical monsoon onset */}
           <Link
             href="/historical-monsoon-onset"
+            prefetch={true}
             className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-emerald-100 transition-all">
@@ -281,6 +283,7 @@ export default function HomePage() {
           {/* 3. know your soil */}
           <Link
             href="/know-your-soil"
+            prefetch={true}
             className="group relative rounded-2xl bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-md transition-all p-3 sm:p-4 flex flex-col justify-between items-center text-center active:scale-95 shadow-sm cursor-pointer no-underline text-slate-900"
           >
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-amber-100 transition-all">
